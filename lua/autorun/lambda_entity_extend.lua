@@ -1,3 +1,4 @@
+local function GetLogging() return function() end end
 
 --local DbgPrint = GetLogging("EntityExt")
 local ENTITY_META = FindMetaTable("Entity")

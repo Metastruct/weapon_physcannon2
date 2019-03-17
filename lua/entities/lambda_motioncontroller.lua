@@ -1,7 +1,7 @@
 if SERVER then
     AddCSLuaFile()
 end
-local function GetLogging() end
+local function GetLogging() return function() end end
 
 local DbgPrint = GetLogging("motioncontroller")
 

@@ -4,7 +4,7 @@ if SERVER then
 end
 
 local function GetLogging()
-	return function() end-- WIP! Don't touch me
+	return function() end
 end
 
 local DbgPrint = GetLogging("physcannon")
