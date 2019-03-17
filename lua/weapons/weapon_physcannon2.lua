@@ -3,6 +3,10 @@ if SERVER then
     AddCSLuaFile()
 end
 
+local function GetLogging()
+	return function() end-- WIP! Don't touch me
+end
+
 local DbgPrint = GetLogging("physcannon")
 local math_tan = math.tan
 local math_pi = math.pi
@@ -156,6 +160,53 @@ local PHYSCANNON_ENDCAP_SPRITE = "sprites/physcannon_glow1.vmt"
 local PHYSCANNON_GLOW_SPRITE = "sprites/physcannon_glow1.vmt"
 local PHYSCANNON_CENTER_GLOW = "sprites/physcannon_core"
 local PHYSCANNON_BLAST_SPRITE = "sprites/physcannon_blast"
+
+local function NoMaterial(n) return n end
+local CreateMaterial = CreateMaterial or function()end
+local PHYSCANNON_ENDCAP_SPRITE = CreateMaterial("physcannon_glow1",'Sprite',util.KeyValuesToTable[[
+"Sprite"
+{
+	"$basetexture" "sprites/physgun_glow"
+	
+	"$spriteorientation" "vp_parallel"
+	"$spriteorigin" "[ 0.50 0.50 ]"
+	"$vertexalpha" 1
+	"$vertexcolor" 1
+	"$spriterendermode" 5
+	"$alpha" "0.9"
+	"$nocull" "1"
+}
+]])
+local PHYSCANNON_GLOW_SPRITE = PHYSCANNON_ENDCAP_SPRITE
+local PHYSCANNON_CENTER_GLOW = CreateMaterial("physcannon_core",'Sprite',util.KeyValuesToTable[[
+"Sprite"
+{
+	"$basetexture" "sprites/physgun_glow"
+	
+	"$spriteorientation" "vp_parallel"
+	"$spriteorigin" "[ 0.50 0.50 ]"
+	"$vertexalpha" 1
+	"$vertexcolor" 1
+	"$spriterendermode" 5
+	"$alpha" "0.7"
+	"$nocull" "1"
+}
+]])
+local PHYSCANNON_BLAST_SPRITE = CreateMaterial("physcannon_blast",'Sprite',util.KeyValuesToTable[[
+"Sprite"
+{
+	"$basetexture" "sprites/physgun_glow"
+	
+	"$spriteorientation" "vp_parallel"
+	//"$spriteorigin" "[ 0.50 0.50 ]"
+	"$vertexalpha" 1
+	"$vertexcolor" 1
+	"$spriterendermode" 5
+	"$alpha" "0.7"
+	"$nocull" "1"
+}
+]])
+
 local PHYSCANNON_CORE_WARP = "particle/warp1_warp"
 
 local MAT_PHYSBEAM = Material("sprites/physbeam.vmt")
@@ -221,7 +272,7 @@ function SWEP:Initialize()
     self.ElementDebounce = CurTime()
     self.CheckSuppressTime = CurTime()
     self.DebounceSecondary = false
-    self:SetWeaponHoldType(self.HoldType)
+    self:SetHoldType(self.HoldType)
     self.ElementPosition = InterpValue(0.0, 0.0, 0)
     self.LastElementDestination = 0
 
@@ -1301,6 +1352,11 @@ function SWEP:Think()
     end
 
     local controller = self:GetMotionController()
+	if not IsValid(controller) then 
+		self:Remove()
+		print("invalid controller",controller,self,self:GetOwner())
+		return
+	end
 
     if CLIENT then
         -- Only predict for local player.
@@ -1505,6 +1561,10 @@ function SWEP:DetachObject(launched)
         DbgPrint(self, "No valid controller")
         return
     end
+	if not controller.IsObjectAttached then
+		print("wtf?",controller)
+		self:Remove()
+	end
 
     if controller:IsObjectAttached() == false then
         DbgPrint(self, "No object attached")
@@ -2119,7 +2179,8 @@ function SWEP:Holster(ent)
     end
 
     local controller = self:GetMotionController()
-    if controller:IsObjectAttached() == true then
+
+    if IsValid(controller) and controller:IsObjectAttached() == true then
         return false
     end
 
@@ -2485,7 +2546,7 @@ function SWEP:SetupEffects()
             Scale = InterpValue(0.0, 1.0, 0.1),
             Alpha = InterpValue(255, 255, 0.1),
             Attachment = 1,
-            Mat = Material(PHYSCANNON_CENTER_GLOW),
+            Mat = NoMaterial(PHYSCANNON_CENTER_GLOW),
             Visible = false,
             Col = Color(255, 255, 255),
         }
@@ -2499,7 +2560,7 @@ function SWEP:SetupEffects()
             Scale = InterpValue(0.0, 1.0, 0.1),
             Alpha = InterpValue(255, 255, 0.1),
             Attachment = 1,
-            Mat = Material(PHYSCANNON_BLAST_SPRITE),
+            Mat = NoMaterial(PHYSCANNON_BLAST_SPRITE),
             Visible = false,
             Col = Color(255, 255, 255),
         }
@@ -2513,7 +2574,7 @@ function SWEP:SetupEffects()
         local data = {
             Scale = InterpValue(0.05 * SPRITE_SCALE, 0.05 * SPRITE_SCALE, 0.0),
             Alpha = InterpValue(64, 64, 0),
-            Mat = Material(PHYSCANNON_GLOW_SPRITE),
+            Mat = NoMaterial(PHYSCANNON_GLOW_SPRITE),
             Visible = true,
             Col = Color(255, 128, 0),
         }
@@ -2565,7 +2626,7 @@ function SWEP:SetupEffects()
             Alpha = InterpValue(255, 255, 0),
             Attachment = self:LookupAttachment(attachmentName),
             Visible = false,
-            Mat = Material(PHYSCANNON_ENDCAP_SPRITE),
+            Mat = NoMaterial(PHYSCANNON_ENDCAP_SPRITE),
             Col = Color(255, 128, 0, 255),
         }
 
