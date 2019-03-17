@@ -5,11 +5,12 @@ local DbgPrint = function() end
 local LAMBDA_FUNCS
 if IS_LAMBDA then return end
 
-if LAMBDA_FUNCS then
 
 
 -- Any utility function should go in here.
 if SERVER then
+
+if LAMBDA_FUNCS then
 
     function TriggerOutputs(outputs)
 
@@ -438,6 +439,8 @@ if SERVER then
 
     end
 
+end -- if LAMBDA_FUNCS 
+	
 else -- CLIENT
 
     function util.ScreenScaleH(n)
@@ -449,6 +452,8 @@ else -- CLIENT
     end
 
 end
+
+if LAMBDA_FUNCS then
 
 local LAMBDA_CURRENT_TICK = 0
 local LAMBDA_FUNCTION_QUEUE = {}
