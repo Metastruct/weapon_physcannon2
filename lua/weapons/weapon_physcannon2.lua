@@ -2194,6 +2194,27 @@ function SWEP:Holster(ent)
     return true
 end
 
+
+function SWEP:OnDrop()
+    DbgPrint(self, "OnDrop")
+
+    if not IsFirstTimePredicted() then
+        return
+    end
+
+    local controller = self:GetMotionController()
+
+    if IsValid(controller) then
+        return
+    end
+
+    self.ShouldDrawGlow = false
+    self:StopLoopingSounds()
+    self:StopEffects()
+    self:DetachObject()
+
+end
+
 function SWEP:Startup()
     self.ShouldDrawGlow = true
 

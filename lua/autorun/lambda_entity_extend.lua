@@ -398,6 +398,8 @@ function ENTITY_META:GetKeyValueTable()
     return table.Copy(self.LambdaKeyValues or {})
 end
 
+end -- if LAMBDA_FUNCS
+
 CHAR_TEX_ANTLION        = 'A'
 CHAR_TEX_BLOODYFLESH    = 'B'
 CHAR_TEX_CONCRETE       = 'C'
@@ -436,7 +438,6 @@ function ENTITY_META:IsVPhysicsFlesh()
     return false
 
 end
-end -- if LAMBDA_FUNCS then
 
 function ENTITY_META:GetRootMoveParent()
     local ent = self
