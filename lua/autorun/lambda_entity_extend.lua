@@ -1,7 +1,10 @@
-AddCSLuaFile()
 
 --local DbgPrint = GetLogging("EntityExt")
 local ENTITY_META = FindMetaTable("Entity")
+
+local LAMBDA_FUNCS
+if IS_LAMBDA then return end
+if LAMBDA_FUNCS then
 
 local male_bbox = Vector(22.291288, 20.596443, 72.959808)
 local female_bbox = Vector(21.857199, 20.744711, 71.528900)
@@ -98,6 +101,8 @@ function ENTITY_META:IsDoor()
     return class == "prop_door_rotating" or class == "func_door" or class == "func_door_rotating"
 end
 
+end -- if LAMBDA
+
 function ENTITY_META:GetModelInfo()
 
     local mdl = self:GetModel()
@@ -114,6 +119,8 @@ function ENTITY_META:GetModelInfo()
     return self.CachedModelDataInfo
 
 end
+
+if LAMBDA_FUNCS then
 
 function ENTITY_META:ShouldShootMissTarget(attacker)
 
@@ -202,6 +209,8 @@ function ENTITY_META:IsItem()
     return ITEM_CLASSES[class] == true
 end
 
+end -- if LAMBDA_FUNCS
+
 function ENTITY_META:PhysicsImpactSound(chan, vol, speed)
 
     local mdlInfo = self:GetModelInfo()
@@ -231,6 +240,8 @@ function ENTITY_META:PhysicsImpactSound(chan, vol, speed)
     end
 
 end
+
+if LAMBDA_FUNCS then
 
 DOOR_STATE_CLOSED = 0
 DOOR_STATE_OPENING = 1
@@ -424,6 +435,7 @@ function ENTITY_META:IsVPhysicsFlesh()
     return false
 
 end
+end -- if LAMBDA_FUNCS then
 
 function ENTITY_META:GetRootMoveParent()
     local ent = self
@@ -497,3 +509,6 @@ end
 function ENTITY_META:BlocksLOS( )
     return self:IsEFlagSet(EFL_DONTBLOCKLOS) == false
 end
+
+do return end
+

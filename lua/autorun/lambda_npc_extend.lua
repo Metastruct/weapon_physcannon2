@@ -2,10 +2,16 @@ if SERVER then
     AddCSLuaFile()
 end
 
-local DbgPrint = GetLogging("NPCExt")
+local DbgPrint = function() end
 local META_NPC = FindMetaTable("NPC")
 
+local LAMBDA_FUNCS
+if IS_LAMBDA then return end
+
+
 if SERVER then
+
+if LAMBDA_FUNCS then
 
     -- Sadly theres only GetHull on the Player metatable, so this is a neccesary evil.
     local HULLS =
@@ -64,6 +70,8 @@ if SERVER then
 
     end
 
+end -- if LAMBDA_FUNCS then
+	
     function META_NPC:CreateServerRagdoll(dmginfo, collisionGroup)
 
         local ragdoll = ents.Create("prop_ragdoll")
@@ -81,6 +89,7 @@ if SERVER then
         return ragdoll
 
     end
+if LAMBDA_FUNCS then
 
     function META_NPC:IsEnemey()
         return not self:IsFriendly()
@@ -89,5 +98,10 @@ if SERVER then
     function META_NPC:IsFriendly()
         return IsFriendEntityName(self:GetClass())
     end
+	
+end -- if LAMBDA_FUNCS then
 
 end
+
+do return end
+

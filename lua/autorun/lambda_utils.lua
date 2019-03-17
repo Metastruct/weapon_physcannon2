@@ -1,6 +1,12 @@
 AddCSLuaFile()
 
-local DbgPrint = GetLogging("Util")
+local DbgPrint = function() end
+
+local LAMBDA_FUNCS
+if IS_LAMBDA then return end
+
+if LAMBDA_FUNCS then
+
 
 -- Any utility function should go in here.
 if SERVER then
@@ -527,6 +533,7 @@ function util.ResetOutputQueue()
 
 end
 
+end -- if LAMBDA_FUNCS
 
 function util.RandomFloat(min, max)
 
@@ -540,3 +547,7 @@ function util.RandomInt(min, max)
     return math.Clamp(math.Round(math.random(min, max)), min, max)
 
 end
+
+do return end
+
+
