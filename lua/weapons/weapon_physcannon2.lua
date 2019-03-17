@@ -1222,7 +1222,7 @@ function SWEP:UpdateElementPosition()
         end
 
         local vm = owner:GetViewModel()
-        if vm ~= nil then
+        if IsValid(vm) then
             vm:SetPoseParameter("active", elemPos)
         end
     else
@@ -2204,13 +2204,15 @@ function SWEP:OnDrop()
 
     local controller = self:GetMotionController()
 
-    if IsValid(controller) then
-        return
-    end
 
     self.ShouldDrawGlow = false
     self:StopLoopingSounds()
     self:StopEffects()
+
+    if not IsValid(controller) then
+        return
+    end
+	
     self:DetachObject()
 
 end
@@ -2340,7 +2342,7 @@ function SWEP:DrawEffectType(id, data, owner, vm)
             if vm == nil then
                 vm = owner:GetViewModel()
             end
-            local attachmentData = vm:GetAttachment(data.Attachment)
+            local attachmentData = vm and vm:GetAttachment(data.Attachment)
             if attachmentData == nil then
                 return
             end
@@ -2406,6 +2408,7 @@ function SWEP:DrawCoreBeams(owner, vm)
 
     if vm == nil and IsValid(owner) then
         vm = owner:GetViewModel()
+		if not IsValid(vm) then return end
     elseif vm == nil then
         vm = self
     end
