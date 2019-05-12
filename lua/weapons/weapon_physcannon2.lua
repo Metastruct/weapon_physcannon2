@@ -36,7 +36,7 @@ SWEP.Weight = 5
 SWEP.AutoSwitchTo = false
 SWEP.AutoSwitchFrom = false
 SWEP.UseHands = true
-SWEP.ViewModel = "models/weapons/c_superphyscannon.mdl"
+SWEP.ViewModel = "models/weapons/c_physcannon.mdl"
 SWEP.WorldModel = "models/weapons/w_Physics.mdl"
 
 SWEP.WepSelectFont      = "WeaponIconsSelected"
@@ -46,7 +46,7 @@ SWEP.IconLetter         = "m"
 
 if CLIENT then
     SWEP.Slot = 0
-    SWEP.SlotPos = 2
+    SWEP.SlotPos = 0
     SWEP.DrawAmmo = false
     SWEP.DrawCrosshair = true
     SWEP.DrawWeaponInfoBox = false
@@ -212,6 +212,10 @@ local PHYSCANNON_CORE_WARP = "particle/warp1_warp"
 local MAT_PHYSBEAM = Material("sprites/physbeam.vmt")
 local MAT_WORLDMDL = Material("models/weapons/w_physics/w_physics_sheet2")
 
+
+local MAT_SUPER = Material"models/weapons/v_physcannon/v_superphyscannon_sheet"
+
+
 local GLOW_RADIUS = 128
 local GLOW_BRIGHTNESS = 1.0
 local GLOW_UPDATE_DT = 1 / 120
@@ -227,7 +231,7 @@ function SWEP:SetupDataTables()
 
     self:NetworkVar("Int", 0, "EffectState")
     self:NetworkVar("Bool", 0, "ElementOpen")
-    self:NetworkVar("Bool", 1, "MegaEnabled")
+    --self:NetworkVar("Bool", 1, "MegaEnabled")
     self:NetworkVar("Float", 0, "ElementDestination")
     self:NetworkVar("Float", 1, "NextIdleTime")
     self:NetworkVar("Entity", 0, "MotionController")
@@ -235,6 +239,17 @@ function SWEP:SetupDataTables()
     self:NetworkVar("Angle", 0, "TargetAngle")
 
 end
+
+
+function SWEP:SetMegaEnabled(set)
+    self:SetSkin(set and 1 or 0)
+    self:SetDTBool(1, set)
+end
+
+function SWEP:GetMegaEnabled()
+    return self:GetDTBool(1)
+end
+
 
 function SWEP:Initialize()
     DbgPrint(self, "Initialize")
@@ -282,6 +297,7 @@ function SWEP:Initialize()
         else
             self:SetMegaEnabled(false)
         end
+        self.last_global_state = game.GetGlobalState("super_phys_gun")
     end
 
     if SERVER then
@@ -297,8 +313,6 @@ function SWEP:Initialize()
     self:DoEffect(EFFECT_CLOSED)
     self:CloseElements()
     self:SetElementDestination(0)
-
-    self:SetSkin(1)
 
     if CLIENT then
         hook.Add("Think", self, function(s)
@@ -1338,6 +1352,7 @@ function SWEP:EmitLight(glowMode, pos, brightness, color)
 
 end
 
+
 function SWEP:UpdateGlow()
 
     local glowMode = physcannon_glow:GetInt()
@@ -1390,19 +1405,27 @@ end
 function SWEP:Think()
 
     if SERVER then
-        if game.GetGlobalState("super_phys_gun") == GLOBAL_ON then
-            self:SetMegaEnabled(true)
-        else
-            self:SetMegaEnabled(false)
+        local super_phys_gun = game.GetGlobalState("super_phys_gun")
+        if self.last_global_state ~= super_phys_gun then
+            self.last_global_state = super_phys_gun
+            if super_phys_gun == GLOBAL_ON then
+                if not self:GetMegaEnabled() then
+                    self:SetMegaEnabled(true)
+                end
+            else
+                if self:GetMegaEnabled() then
+                    self:SetMegaEnabled(false)
+                end
+            end
         end
     end
 
     local controller = self:GetMotionController()
-	if not IsValid(controller) then 
-		self:Remove()
-		print("invalid controller",controller,self,self:GetOwner())
-		return
-	end
+    if not IsValid(controller) then 
+        self:Remove()
+        print("invalid controller",controller,self,self:GetOwner())
+        return
+    end
 
     if CLIENT then
         -- Only predict for local player.
@@ -1517,6 +1540,7 @@ function SWEP:AttachObject(ent, tr)
 
     if SERVER then
         owner:SimulateGravGunPickup(ent, false)
+        hook.Run("GravGunOnPickedUp", owner, ent)
     end
 
     local motionController = self:GetMotionController()
@@ -1603,10 +1627,10 @@ function SWEP:DetachObject(launched)
         DbgPrint(self, "No valid controller")
         return
     end
-	if not controller.IsObjectAttached then
-		print("wtf?",controller)
-		self:Remove()
-	end
+    if not controller.IsObjectAttached then
+        print("wtf?",controller)
+        self:Remove()
+    end
 
     if controller:IsObjectAttached() == false then
         DbgPrint(self, "No object attached")
@@ -1632,7 +1656,9 @@ function SWEP:DetachObject(launched)
     end
 
     if SERVER and IsValid(owner) == true then
+        hook.Run("GravGunOnDropped", owner, ent)
         owner:SimulateGravGunDrop(ent, launched)
+        
     end
 
     local motionController = self:GetMotionController()
@@ -1687,14 +1713,14 @@ function SWEP:PuntNonVPhysics(ent, fwd, tr)
 
     DbgPrint("PuntNonVPhysics")
 
-    if hook.Call("GravGunPunt", GAMEMODE, self:GetOwner(), ent) == false then
-        return
-    end
-
     if ent:IsNPC() == true and IsFriendEntityName(ent:GetClass()) == true then
         return
     end
 
+    if hook.Run("GravGunPunt", self:GetOwner(), ent) == false then
+        return
+    end
+    
     if SERVER then
 
         local dmgAmount = 1.0
@@ -1777,6 +1803,10 @@ function SWEP:PuntVPhysics(ent, fwd, tr)
         return
     end
 
+    if hook.Run("GravGunPunt", self:GetOwner(), ent) == false then
+        return
+    end
+    
     DbgPrint("PuntVPhysics")
 
     self.LastPuntedObject = ent
@@ -2142,6 +2172,17 @@ function SWEP:DoEffectLaunch(pos)
 
 end
 
+function SWEP:PostDrawViewModel(vm, weapon, ply)
+    render.MaterialOverride()
+end
+
+function SWEP:PreDrawViewModel(vm, weapon, ply)
+    if self:GetMegaEnabled() then
+        render.MaterialOverride(MAT_SUPER)
+    end
+end
+
+
 function SWEP:DoEffectIdle()
 
 end
@@ -2250,7 +2291,7 @@ function SWEP:OnDrop()
     if not IsValid(controller) then
         return
     end
-	
+    
     self:DetachObject()
 
 end
@@ -2454,7 +2495,7 @@ function SWEP:DrawCoreBeams(owner, vm)
 
     if vm == nil and IsValid(owner) == true then
         vm = owner:GetViewModel()
-		if not IsValid(vm) then return end
+        if not IsValid(vm) then return end
     elseif vm == nil then
         vm = self
     end
