@@ -19,7 +19,7 @@ SWEP.Author = "Zeh Matt"
 SWEP.Instructions = ""
 
 SWEP.Spawnable = true
-SWEP.AdminOnly = true
+SWEP.AdminOnly = false
 
 SWEP.Primary.ClipSize = -1
 SWEP.Primary.DefaultClip = -1
