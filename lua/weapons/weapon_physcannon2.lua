@@ -1422,8 +1422,8 @@ function SWEP:Think()
 
     local controller = self:GetMotionController()
     if not IsValid(controller) then 
-        self:Remove()
-        print("invalid controller",controller,self,self:GetOwner())
+        print("[Physcannon2] Invalid controller",controller,self,self:GetOwner())
+        if SERVER then self:Remove() end
         return
     end
 
@@ -1628,8 +1628,8 @@ function SWEP:DetachObject(launched)
         return
     end
     if not controller.IsObjectAttached then
-        print("wtf?",controller)
-        self:Remove()
+        print("[Physcannon 2] Controller is not controller?? It is: ",controller)
+        if SERVER then self:Remove() end
     end
 
     if controller:IsObjectAttached() == false then
