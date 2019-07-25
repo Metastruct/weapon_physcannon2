@@ -13,6 +13,46 @@ local math_pi = math.pi
 local EyeAngles = EyeAngles
 local EyePos = EyePos
 local IsValid = IsValid
+local game_GetGlobalState = game.GetGlobalState
+local bor = bit.bor
+local Vector = Vector
+local Angle = Angle
+local TraceLine = util.TraceLine
+local Color = Color
+
+local ATTACHMENTS_GAPS_FP =
+{
+    "fork1t",
+    "fork2t",
+}
+
+local ATTACHMENTS_GAPS_TP =
+{
+    "fork1t",
+    "fork2t",
+    "fork3t",
+}
+
+local ATTACHMENTS_GLOW_FP =
+{
+    "fork1b",
+    "fork1m",
+    "fork1t",
+    "fork2b",
+    "fork2m",
+    "fork2t"
+}
+
+local ATTACHMENTS_GLOW_TP =
+{
+    "fork1m",
+    "fork1t",
+    "fork1b",
+    "fork2m",
+    "fork2t",
+    "fork3m",
+    "fork3t",
+}
 
 SWEP.PrintName = "#HL2_GravityGun"
 SWEP.Author = "Zeh Matt"
@@ -45,6 +85,7 @@ SWEP.IconFont           = "WeaponIconsSelected"
 SWEP.IconLetter         = "m"
 
 if CLIENT then
+
     SWEP.Slot = 0
     SWEP.SlotPos = 0
     SWEP.DrawAmmo = false
@@ -212,12 +253,6 @@ local PHYSCANNON_CORE_WARP = "particle/warp1_warp"
 local MAT_PHYSBEAM = Material("sprites/physbeam.vmt")
 local MAT_WORLDMDL = Material("models/weapons/w_physics/w_physics_sheet2")
 
-
-local MAT_SUPER = Material"models/weapons/v_physcannon/v_superphyscannon_sheet"
-
-
-local GLOW_RADIUS = 128
-local GLOW_BRIGHTNESS = 1.0
 local GLOW_UPDATE_DT = 1 / 120
 
 --
@@ -231,25 +266,15 @@ function SWEP:SetupDataTables()
 
     self:NetworkVar("Int", 0, "EffectState")
     self:NetworkVar("Bool", 0, "ElementOpen")
-    --self:NetworkVar("Bool", 1, "MegaEnabled")
+    self:NetworkVar("Bool", 1, "MegaEnabled")
     self:NetworkVar("Float", 0, "ElementDestination")
     self:NetworkVar("Float", 1, "NextIdleTime")
+    self:NetworkVar("Float", 2, "NextDenySoundTime")
     self:NetworkVar("Entity", 0, "MotionController")
     self:NetworkVar("Vector", 0, "TargetOffset")
     self:NetworkVar("Angle", 0, "TargetAngle")
-
+    self:NetworkVar("Vector", 10, "LastWeaponColor")
 end
-
-
-function SWEP:SetMegaEnabled(set)
-    self:SetSkin(set and 1 or 0)
-    self:SetDTBool(1, set)
-end
-
-function SWEP:GetMegaEnabled()
-    return self:GetDTBool(1)
-end
-
 
 function SWEP:Initialize()
     DbgPrint(self, "Initialize")
@@ -268,7 +293,7 @@ function SWEP:Initialize()
     self.GlowSprites = {}
     self.BeamSprites = {}
 
-    self.ElementOpen = nil
+    self:SetElementOpen(false)
     self.OldOpen = false
     self.UpdateName = true
     self:SetNextIdleTime(CurTime())
@@ -292,12 +317,11 @@ function SWEP:Initialize()
     self.LastElementDestination = 0
 
     if SERVER then
-        if game.GetGlobalState("super_phys_gun") == GLOBAL_ON then
+        if game_GetGlobalState("super_phys_gun") == GLOBAL_ON then
             self:SetMegaEnabled(true)
         else
             self:SetMegaEnabled(false)
         end
-        self.last_global_state = game.GetGlobalState("super_phys_gun")
     end
 
     if SERVER then
@@ -314,11 +338,12 @@ function SWEP:Initialize()
     self:CloseElements()
     self:SetElementDestination(0)
 
-    if CLIENT then
-        hook.Add("Think", self, function(s)
-            self:UpdateEffects()
-        end)
-    end
+    self:SetSkin(1)
+
+    local ThinkHook = self.ThinkHook
+    hook.Add("Think", self, function(s)
+        ThinkHook(s)
+    end)
 
 end
 
@@ -490,7 +515,7 @@ function SWEP:PrimaryAttack()
     local start = owner:GetShootPos()
     local puntDist = physcannon_tracelength:GetFloat()
     local endPos = start + (fwd * puntDist)
-    local trMask = bit.bor(MASK_SHOT, CONTENTS_GRATE)
+    local trMask = bor(MASK_SHOT, CONTENTS_GRATE)
 
     local tr = util.TraceHull({
         start = start,
@@ -513,7 +538,7 @@ function SWEP:PrimaryAttack()
     end
 
     if valid == false then
-        tr = util.TraceLine({
+        tr = TraceLine({
             start = start,
             endpos = endPos,
             mask = trMask,
@@ -618,13 +643,10 @@ function SWEP:SecondaryAttack()
         SuppressHostEvents(NULL)
     end
 
-    --DbgPrint(self, "SecondaryAttack")
     local controller = self:GetMotionController()
-    --print(controller, controller:IsObjectAttached())
-
     local owner = self:GetOwner()
 
-    if controller:IsObjectAttached() == true --[[ self:GetNW2Bool("Holding") == true ]] then
+    if controller:IsObjectAttached() == true then
 
         self:SetNextPrimaryFire(CurTime() + 0.5)
         self:SetNextSecondaryFire(CurTime() + 0.5)
@@ -692,10 +714,10 @@ function SWEP:FindObjectInCone(start, fwd, coneSize)
             continue
         end
 
-        local tr = util.TraceLine({
+        local tr = TraceLine({
             start = start,
             endpos = v:WorldSpaceCenter(),
-            mask = bit.bor(MASK_SHOT, CONTENTS_GRATE),
+            mask = bor(MASK_SHOT, CONTENTS_GRATE),
             filter = self.Owner
         })
 
@@ -749,10 +771,10 @@ function SWEP:FindObjectInConeMega(start, fwd, coneSize, ballCone, onlyCombineBa
             end
         end
 
-        local tr = util.TraceLine({
+        local tr = TraceLine({
             start = start,
             endpos = v:WorldSpaceCenter(),
-            mask = bit.bor(MASK_SHOT, CONTENTS_GRATE),
+            mask = bor(MASK_SHOT, CONTENTS_GRATE),
             filter = self.Owner
         })
 
@@ -783,7 +805,6 @@ function SWEP:CanPickupObject(ent)
     end
 
     local massLimit = 0
-    local sizeLimit = 0
 
     if self:IsMegaPhysCannon() == false then
         massLimit = physcannon_maxmass:GetInt()
@@ -907,9 +928,9 @@ function SWEP:FindObjectTrace(owner)
     local start = owner:GetShootPos()
     local testLength = self:TraceLength() * 4.0
     local endPos = start + (fwd * testLength)
-    local trMask = bit.bor(MASK_SHOT, CONTENTS_GRATE)
+    local trMask = bor(MASK_SHOT, CONTENTS_GRATE)
 
-    local tr = util.TraceLine({
+    local tr = TraceLine({
         start = start,
         endpos = endPos,
         mask = trMask,
@@ -987,9 +1008,9 @@ function SWEP:FindObject()
     end
 
     if self:CanPickupObject(ent) == false then
-        if self.NextDenySoundTime == nil or CurTime() > self.NextDenySoundTime then
+        if CurTime() > self:GetNextDenySoundTime() then
             self:WeaponSound("Weapon_PhysCannon.TooHeavy")
-            self.NextDenySoundTime = CurTime() + 0.9
+            self:SetNextDenySoundTime(CurTime() + 0.9)
             self:SendWeaponAnim(ACT_VM_PRIMARYATTACK)
             owner:SetAnimation(PLAYER_ATTACK1)
         end
@@ -1088,24 +1109,20 @@ end
 function SWEP:OpenElements()
 
     --DbgPrint(self, "OpenElements")
-
-    local owner = self:GetOwner()
-    if owner == nil then
-        return
-    end
-
-    self:SetElementDestination(1)
-
-    if self.ElementOpen == true then
+    if self:GetElementDestination() == 1.0 then
         return
     end
 
     if SERVER then
         SuppressHostEvents(NULL)
     end
-    self:WeaponSound("Weapon_PhysCannon.OpenClaws")
 
-    self.ElementOpen = true
+    if self:GetElementDestination() == 0 then
+        self:WeaponSound("Weapon_PhysCannon.OpenClaws")
+    end
+
+    self:SetElementDestination(1)
+    self:SetElementOpen(true)
 
     if self:IsMegaPhysCannon() == true then
         self:SendWeaponAnim(ACT_VM_IDLE)
@@ -1118,11 +1135,7 @@ end
 function SWEP:OpenElementsHalf()
 
     --DbgPrint(self, "OpenElements")
-
-    self:SetElementDestination(0.5)
-
-    local owner = self:GetOwner()
-    if self.ElementOpen == true or owner == nil then
+    if self:GetElementDestination() == 0.5 then
         return
     end
 
@@ -1130,9 +1143,12 @@ function SWEP:OpenElementsHalf()
         SuppressHostEvents(NULL)
     end
 
-    self:WeaponSound("Weapon_PhysCannon.OpenClaws")
+    if self:GetElementDestination() == 0 then
+        self:WeaponSound("Weapon_PhysCannon.OpenClaws")
+    end
 
-    self.ElementOpen = true
+    self:SetElementDestination(0.5)
+    self:SetElementOpen(true)
 
     if self:IsMegaPhysCannon() == true then
         self:SendWeaponAnim(ACT_VM_IDLE)
@@ -1146,12 +1162,7 @@ function SWEP:CloseElements()
 
     --DbgPrint(self, "CloseElements")
 
-    local owner = self:GetOwner()
-    if owner == nil then
-        return
-    end
-
-    if self.ElementOpen ~= true then
+    if self:GetElementDestination() == 0.0 then
         return
     end
 
@@ -1160,7 +1171,9 @@ function SWEP:CloseElements()
         return
     end
 
-    self:SetElementDestination(0)
+    if SERVER then
+        SuppressHostEvents(NULL)
+    end
 
     local snd = self:GetMotorSound()
     if snd ~= nil and snd ~= NULL then
@@ -1168,12 +1181,9 @@ function SWEP:CloseElements()
         snd:ChangePitch(50, 1.0)
     end
 
-    if SERVER then
-        SuppressHostEvents(NULL)
-    end
-
+    self:SetElementDestination(0)
     self:WeaponSound("Weapon_PhysCannon.CloseClaws")
-    self.ElementOpen = false
+    self:SetElementOpen(false)
 
     if self:IsMegaPhysCannon() == true then
         self:SendWeaponAnim(ACT_VM_IDLE)
@@ -1198,7 +1208,7 @@ function SWEP:WeaponIdle()
     local controller = self:GetMotionController()
 
     if self:IsMegaPhysCannon() == true then
-        self:SetElementDestination(1)
+        self:OpenElements()
     end
 
     if self:GetNextIdleTime() == -1 then
@@ -1210,8 +1220,6 @@ function SWEP:WeaponIdle()
     end
 
     self:SetNextIdleTime(-1)
-    self.LastDenySoundPlayed = false
-
     if controller:IsObjectAttached() == true then
         self:SendWeaponAnim(ACT_VM_RELOAD)
     else
@@ -1240,7 +1248,7 @@ function SWEP:UpdateElementPosition()
         end
 
         local vm = owner:GetViewModel()
-        if IsValid(vm) then
+        if vm ~= nil then
             vm:SetPoseParameter("active", elemPos)
         end
     else
@@ -1289,7 +1297,7 @@ function SWEP:CheckForTarget()
         local dist = (tr.StartPos - tr.HitPos):Length()
         if dist <= self:TraceLength() and self:CanPickupObject(tr.Entity) then
             self.ChangeState = ELEMENT_STATE_NONE
-            self:OpenElements()
+            self:OpenElementsHalf()
             return
         end
 
@@ -1304,21 +1312,13 @@ end
 
 function SWEP:EmitLight(glowMode, pos, brightness, color)
 
-
     if glowMode == 1 then
 
         local pt = self.ProjectedTexture
         if pt == nil then
             pt = ProjectedTexture()
-            pt:SetOrthographic(true, 300, 300, 300, 300 )
             pt:SetTexture( "effects/flashlight/soft" )
-            pt:SetFarZ(250)
-            pt:SetHorizontalFOV(1)
-            pt:SetVerticalFOV(1)
-            pt:SetNearZ(1)
-            pt:SetQuadraticAttenuation(0.1)
-            pt:SetLinearAttenuation(0.1)
-            pt:SetConstantAttenuation(0.1)
+            pt:SetFarZ(200)
             self.ProjectedTexture = pt
         end
         local owner = self:GetOwner()
@@ -1331,6 +1331,20 @@ function SWEP:EmitLight(glowMode, pos, brightness, color)
         pt:SetColor(color)
         pt:SetPos(pos)
         pt:Update()
+
+        local dlight = DynamicLight( self:EntIndex(), false )
+        if dlight then
+            dlight.pos = pos
+            dlight.r = color.r
+            dlight.g = color.g
+            dlight.b = color.b
+            dlight.brightness = brightness
+            dlight.decay = 1
+            dlight.size = 64
+            dlight.minlight = 0.1
+            dlight.nomodel = false
+            dlight.dietime = CurTime() + 0.1
+        end
 
     elseif glowMode == 2 then
 
@@ -1352,17 +1366,18 @@ function SWEP:EmitLight(glowMode, pos, brightness, color)
 
 end
 
-
 function SWEP:UpdateGlow()
+
+    if self:IsEffectActive(EF_NODRAW) == true then
+        return
+    end
 
     local glowMode = physcannon_glow:GetInt()
 
     -- If disabled and previously enabled remove projected texture.
-    if glowMode == 0 or glowMode == 2 then
-        if self.ProjectedTexture ~= nil then
-            self.ProjectedTexture:Remove()
-            self.ProjectedTexture = nil
-        end
+    if (glowMode == 0 or glowMode == 2) and self.ProjectedTexture ~= nil then
+        self.ProjectedTexture:Remove()
+        self.ProjectedTexture = nil
     end
 
     if glowMode == 0 then
@@ -1374,18 +1389,25 @@ function SWEP:UpdateGlow()
         return
     end
 
-    local entIndex = nil
     local entPos = nil
-
+    local owner = self:GetOwner()
     if self:ShouldDrawUsingViewModel() == true then
-        local vm = LocalPlayer():GetViewModel()
+        local vm = owner:GetViewModel()
         local attachment = vm:GetAttachment(1)
+        if attachment == nil then
+            return
+        end
         entIndex = vm:EntIndex()
-        entPos = attachment.Pos - (LocalPlayer():GetAimVector() * 35)
+        --entPos = owner:GetShootPos() + (owner:GetAimVector() * 35)
+        entPos = owner:GetShootPos() - (owner:GetAimVector() * 15)
+        --entPos = 
     else
         entIndex = self:EntIndex()
         local attachment = self:GetAttachment(1)
-        entPos = attachment.Pos
+        if attachment == nil then
+            return
+        end
+        entPos = attachment.Pos + (attachment.Ang:Forward() * 3.5)
     end
 
     local wepColor = self:GetWeaponColor()
@@ -1397,28 +1419,25 @@ function SWEP:UpdateGlow()
     end
 
     self:EmitLight(glowMode, entPos, brightness * 0.5, color)
-
     self.NextGlowUpdate = curTime + GLOW_UPDATE_DT
 
 end
 
-function SWEP:Think()
+function SWEP:ThinkHook()
 
     if SERVER then
-        local super_phys_gun = game.GetGlobalState("super_phys_gun")
-        if self.last_global_state ~= super_phys_gun then
-            self.last_global_state = super_phys_gun
-            if super_phys_gun == GLOBAL_ON then
-                if not self:GetMegaEnabled() then
-                    self:SetMegaEnabled(true)
-                end
-            else
-                if self:GetMegaEnabled() then
-                    self:SetMegaEnabled(false)
-                end
-            end
+        if game_GetGlobalState("super_phys_gun") == GLOBAL_ON then
+            self:SetMegaEnabled(true)
+        else
+            self:SetMegaEnabled(false)
         end
+    else
+        self:UpdateEffects()
     end
+
+end
+
+function SWEP:Think()
 
     local controller = self:GetMotionController()
     if not IsValid(controller) then 
@@ -1439,8 +1458,6 @@ function SWEP:Think()
         if effectState ~= self.OldEffectState then
             self:DoEffect(effectState)
         end
-
-        self:UpdateDrawUsingViewModel()
         self:UpdateElementPosition()
         self:StartEffects()
     end
@@ -1464,9 +1481,13 @@ function SWEP:Think()
 
         if self.ElementDebounce < CurTime() and self.ChangeState ~= ELEMENT_STATE_NONE then
             if self.ChangeState == ELEMENT_STATE_OPEN then
-                self:OpenElements()
+                if SERVER then
+                    self:OpenElements()
+                end
             elseif self.ChangeState == ELEMENT_STATE_CLOSED then
-                self:CloseElements()
+                if SERVER then
+                    self:CloseElements()
+                end
             end
             self.ChangeState = ELEMENT_STATE_NONE
         end
@@ -1496,7 +1517,7 @@ function SWEP:AttachObject(ent, tr)
         ent:IsEFlagSet(EFL_NO_PHYSCANNON_INTERACTION) == false and
         ent:IsEFlagSet(EFL_NO_MEGAPHYSCANNON_RAGDOLL) == false and
         ent:CanBecomeRagdoll() == true and
-        ent:GetMoveType() == MOVETYPE_STEP) 
+        ent:GetMoveType() == MOVETYPE_STEP)
     then
 
         local dmgInfo = DamageInfo()
@@ -1519,7 +1540,7 @@ function SWEP:AttachObject(ent, tr)
         dmgInfo:SetInflictor(owner)
         dmgInfo:SetAttacker(owner)
         dmgInfo:SetDamage(10000)
-        dmgInfo:SetDamageType(bit.bor(DMG_PHYSGUN, DMG_REMOVENORAGDOLL))
+        dmgInfo:SetDamageType(bor(DMG_PHYSGUN, DMG_REMOVENORAGDOLL))
 
         ent:TakeDamageInfo(dmgInfo)
 
@@ -1658,7 +1679,6 @@ function SWEP:DetachObject(launched)
     if SERVER and IsValid(owner) == true then
         hook.Run("GravGunOnDropped", owner, ent)
         owner:SimulateGravGunDrop(ent, launched)
-        
     end
 
     local motionController = self:GetMotionController()
@@ -1713,14 +1733,14 @@ function SWEP:PuntNonVPhysics(ent, fwd, tr)
 
     DbgPrint("PuntNonVPhysics")
 
+    if hook.Call("GravGunPunt", GAMEMODE, self:GetOwner(), ent) == false then
+        return
+    end
+
     if ent:IsNPC() == true and IsFriendEntityName(ent:GetClass()) == true then
         return
     end
 
-    if hook.Run("GravGunPunt", self:GetOwner(), ent) == false then
-        return
-    end
-    
     if SERVER then
 
         local dmgAmount = 1.0
@@ -1732,7 +1752,7 @@ function SWEP:PuntNonVPhysics(ent, fwd, tr)
         dmgInfo:SetAttacker(self:GetOwner())
         dmgInfo:SetInflictor(self)
         dmgInfo:SetDamage(dmgAmount)
-        dmgInfo:SetDamageType(bit.bor(DMG_CRUSH, DMG_PHYSGUN))
+        dmgInfo:SetDamageType(bor(DMG_CRUSH, DMG_PHYSGUN))
         dmgInfo:SetDamageForce(fwd)
         dmgInfo:SetDamagePosition(tr.HitPos)
 
@@ -1793,7 +1813,6 @@ end
 function SWEP:PuntVPhysics(ent, fwd, tr)
 
     local curTime = CurTime()
-    local owner = self:GetOwner()
 
     if self.LastPuntedObject == ent and curTime < self.NextPuntTime then
         return
@@ -1811,6 +1830,7 @@ function SWEP:PuntVPhysics(ent, fwd, tr)
 
     self.LastPuntedObject = ent
     self.NextPuntTime = curTime + 0.5
+    local owner = self:GetOwner()
 
     if SERVER then
 
@@ -1870,8 +1890,6 @@ function SWEP:PuntVPhysics(ent, fwd, tr)
 
     self:PrimaryFireEffect()
     self:SendWeaponAnim(ACT_VM_SECONDARYATTACK)
-
-    local owner = self:GetOwner()
     owner:SetAnimation(PLAYER_ATTACK1)
 
     self.ChangeState = ELEMENT_STATE_CLOSED
@@ -2052,29 +2070,32 @@ function SWEP:DoEffectHolding(pos)
         return
     end
 
+    local effectParameters = self.EffectParameters
+    local beamParameters = self.BeamParameters
+
     if self:ShouldDrawUsingViewModel() == true then
 
-        local core = self.EffectParameters[PHYSCANNON_CORE]
+        local core = effectParameters[PHYSCANNON_CORE]
         core.Scale:InitFromCurrent(20.0, 0.2)
         core.Alpha:InitFromCurrent(255.0, 0.1)
 
-        local blast = self.EffectParameters[PHYSCANNON_BLAST]
+        local blast = effectParameters[PHYSCANNON_BLAST]
         blast.Visible = false
 
         for i = PHYSCANNON_GLOW1, PHYSCANNON_GLOW6 do
-            local data = self.EffectParameters[i]
+            local data = effectParameters[i]
             data.Scale:InitFromCurrent(0.5 * SPRITE_SCALE, 0.2)
             data.Alpha:InitFromCurrent(64.0, 0.2)
             data.Visible = true
         end
 
         for i = PHYSCANNON_ENDCAP1, PHYSCANNON_ENDCAP3 do
-            local data = self.EffectParameters[i]
+            local data = effectParameters[i]
             if data ~= nil then
                 data.Visible = true
             end
 
-            local beamdata = self.BeamParameters[i]
+            local beamdata = beamParameters[i]
             if beamdata ~= nil then
                 beamdata.Lifetime = -1
                 beamdata.Scale:InitFromCurrent(0.5, 0.1)
@@ -2083,26 +2104,26 @@ function SWEP:DoEffectHolding(pos)
 
     else
 
-        local core = self.EffectParameters[PHYSCANNON_CORE]
+        local core = effectParameters[PHYSCANNON_CORE]
         core.Scale:InitFromCurrent(16.0, 0.2)
         core.Alpha:InitFromCurrent(255.0, 0.1)
 
-        local blast = self.EffectParameters[PHYSCANNON_BLAST]
+        local blast = effectParameters[PHYSCANNON_BLAST]
         blast.Visible = false
 
         for i = PHYSCANNON_GLOW1, PHYSCANNON_GLOW6 do
-            local data = self.EffectParameters[i]
+            local data = effectParameters[i]
             data.Scale:InitFromCurrent(0.5 * SPRITE_SCALE, 0.2)
             data.Alpha:InitFromCurrent(64.0, 0.2)
             data.Visible = true
         end
 
         for i = PHYSCANNON_ENDCAP1, PHYSCANNON_ENDCAP3 do
-            local data = self.EffectParameters[i]
+            local data = effectParameters[i]
             if data == nil then continue end
             data.Visible = true
 
-            local beamdata = self.BeamParameters[i]
+            local beamdata = beamParameters[i]
             if beamdata ~= nil then
                 beamdata.Scale:InitFromCurrent(0.6, 0.1)
                 beamdata.Lifetime = -1
@@ -2111,7 +2132,7 @@ function SWEP:DoEffectHolding(pos)
 
     end
 
-    local core2 = self.EffectParameters[PHYSCANNON_CORE_2]
+    local core2 = effectParameters[PHYSCANNON_CORE_2]
     core2.Scale:InitFromCurrent(18.0, 0.1)
     core2.Alpha:InitFromCurrent(220, 0.2)
 
@@ -2136,7 +2157,7 @@ function SWEP:DoEffectLaunch(pos)
             endPos = owner:GetShootPos()
             shotDir = owner:GetAimVector()
 
-            local tr = util.TraceLine({
+            local tr = TraceLine({
                 start = endPos,
                 endpos = endPos + (shotDir * 1900),
                 mask = MASK_SHOT,
@@ -2171,17 +2192,6 @@ function SWEP:DoEffectLaunch(pos)
     end
 
 end
-
-function SWEP:PostDrawViewModel(vm, weapon, ply)
-    render.MaterialOverride()
-end
-
-function SWEP:PreDrawViewModel(vm, weapon, ply)
-    if self:GetMegaEnabled() then
-        render.MaterialOverride(MAT_SUPER)
-    end
-end
-
 
 function SWEP:DoEffectIdle()
 
@@ -2240,6 +2250,9 @@ function SWEP:DrawWorldModel()
         self:DoEffect(effectState)
     end
 
+    local wepColor = self:GetWeaponColor()
+    MAT_WORLDMDL:SetVector("$selfillumtint", wepColor)
+
     self:UpdateElementPosition()
     self:DrawModel()
 end
@@ -2258,7 +2271,6 @@ function SWEP:Holster(ent)
     end
 
     local controller = self:GetMotionController()
-
     if IsValid(controller) and controller:IsObjectAttached() == true then
         return false
     end
@@ -2273,38 +2285,11 @@ function SWEP:Holster(ent)
     return true
 end
 
-
-function SWEP:OnDrop()
-    DbgPrint(self, "OnDrop")
-
-    if not IsFirstTimePredicted() then
-        return
-    end
-
-    local controller = self:GetMotionController()
-
-
-    self.ShouldDrawGlow = false
-    self:StopLoopingSounds()
-    self:StopEffects()
-
-    if not IsValid(controller) then
-        return
-    end
-    
-    self:DetachObject()
-
-end
-
 function SWEP:Startup()
     self.ShouldDrawGlow = true
 
     self:SendWeaponAnim(ACT_VM_DEPLOY)
     self:SetNextIdleTime(CurTime() + 0.1)
-
-    if CLIENT then
-        self:UpdateDrawUsingViewModel()
-    end
 
     if self:IsMegaPhysCannon() == true then
         self:OpenElements()
@@ -2320,9 +2305,12 @@ function SWEP:Startup()
     self:DoEffect(EFFECT_READY)
 end
 
-function SWEP:Equip()
+function SWEP:Equip(newOwner)
     DbgPrint("Equip")
     self:Startup()
+    if IsValid(newOwner) and newOwner:IsPlayer() == true then
+        self:SetLastWeaponColor(newOwner:GetWeaponColor())
+    end
 end
 
 function SWEP:Deploy()
@@ -2331,12 +2319,20 @@ function SWEP:Deploy()
     return true
 end
 
+function SWEP:OnDrop()
+    self:DetachObject()
+end
+
+function SWEP:OwnerChanged()
+    self:DetachObject()
+end
+
 function SWEP:FormatViewModelAttachment(pos, inverse)
 
     local origin = EyePos()
     local fov = LocalPlayer():GetFOV()
-    local worldx = math_tan( fov * math.pi / 360.0 )
-    local viewx = math.tan( self.ViewModelFOV * math_pi / 360.0 )
+    local worldx = math_tan( fov * math_pi / 360.0 )
+    local viewx = math_tan( self.ViewModelFOV * math_pi / 360.0 )
     local factorX = worldx / viewx
     local factorY = factorX
 
@@ -2365,20 +2361,6 @@ function SWEP:FormatViewModelAttachment(pos, inverse)
 
 end
 
-function SWEP:OnDrop()
-    self:DetachObject()
-    if CLIENT then
-        self:UpdateDrawUsingViewModel()
-    end
-end
-
-function SWEP:OwnerChanged()
-    self:DetachObject()
-    if CLIENT then
-        self:UpdateDrawUsingViewModel()
-    end
-end
-
 function SWEP:UpdateDrawUsingViewModel()
     if self.EffectsInvalidated == true then
         self:InvalidateEffects()
@@ -2387,13 +2369,22 @@ function SWEP:UpdateDrawUsingViewModel()
 
     local newValue = self:IsCarriedByLocalPlayer() and LocalPlayer():ShouldDrawLocalPlayer() == false
 
+    local owner = self:GetOwner()
+    if IsValid(owner) == false then
+        newValue = false
+    else
+        if owner:Alive() == false then
+            newValue = false
+        end
+    end
+
     -- Mark for next frame otherwise positions are incorrect.
     self.EffectsInvalidated = newValue ~= self.DrawUsingViewModel
     self.DrawUsingViewModel = newValue
 end
 
 function SWEP:ShouldDrawUsingViewModel()
-    if IsValid(self:GetOwner()) ~= true then
+    if not IsValid(self:GetOwner()) then
         return false
     end
     return self.DrawUsingViewModel
@@ -2405,11 +2396,12 @@ function SWEP:DrawEffects(vm)
 
     self:DrawCoreBeams(owner, vm)
 
+    local DrawEffectType = self.DrawEffectType
     for k, data in pairs(self.EffectParameters) do
         if data.Visible == false then
             continue
         end
-        self:DrawEffectType(k, data, owner, vm)
+        DrawEffectType(self, k, data, owner, vm)
     end
 
 end
@@ -2429,7 +2421,7 @@ function SWEP:DrawEffectType(id, data, owner, vm)
             if vm == nil then
                 vm = owner:GetViewModel()
             end
-            local attachmentData = vm and vm:GetAttachment(data.Attachment)
+            local attachmentData = vm:GetAttachment(data.Attachment)
             if attachmentData == nil then
                 return
             end
@@ -2445,7 +2437,7 @@ function SWEP:DrawEffectType(id, data, owner, vm)
     end
 
     render.SetMaterial(data.Mat)
-
+    
     local colorScale = 0.7
     if self:IsMegaPhysCannon() then
         colorScale = 1
@@ -2461,6 +2453,8 @@ end
 
 local BEAM_GROUPS = 4
 local BEAM_SEGMENTS = 4
+local render_StartBeam = render and render.StartBeam or nil
+local render_EndBeam = render and render.EndBeam or nil
 
 function SWEP:DrawBeam(startPos, endPos, width, color)
 
@@ -2469,7 +2463,7 @@ function SWEP:DrawBeam(startPos, endPos, width, color)
     local len = endPos - startPos
     local split = len / BEAM_SEGMENTS
     for n = 0, BEAM_GROUPS - 1 do
-        render.StartBeam(BEAM_SEGMENTS)
+        render_StartBeam(BEAM_SEGMENTS)
         for i = 0, BEAM_SEGMENTS - 1 do
             local offset = Vector(0, 0, 0)
             local pos
@@ -2486,7 +2480,7 @@ function SWEP:DrawBeam(startPos, endPos, width, color)
             local texcoord = util.RandomFloat(0, 1)
             render.AddBeam(pos, width, texcoord, color)
         end
-        render.EndBeam()
+        render_EndBeam()
     end
 
 end
@@ -2495,7 +2489,6 @@ function SWEP:DrawCoreBeams(owner, vm)
 
     if vm == nil and IsValid(owner) == true then
         vm = owner:GetViewModel()
-        if not IsValid(vm) then return end
     elseif vm == nil then
         vm = self
     end
@@ -2503,7 +2496,9 @@ function SWEP:DrawCoreBeams(owner, vm)
     local curTime = CurTime()
     local corePos
     local maxEndCap = PHYSCANNON_ENDCAP3
-    if self:ShouldDrawUsingViewModel() == true then
+    local shouldDrawUsingViewModel = self:ShouldDrawUsingViewModel()
+
+    if shouldDrawUsingViewModel == true then
         if owner ~= nil then
             if IsValid(vm) == false then
                 vm = owner:GetViewModel()
@@ -2525,22 +2520,25 @@ function SWEP:DrawCoreBeams(owner, vm)
     end
 
     local colorScale = 0.6
-    if self:IsMegaPhysCannon() == true then
+    local isMegaPhysCannon = self:IsMegaPhysCannon()
+
+    if isMegaPhysCannon == true then
         colorScale = 1
     end
 
     local wepColor = self:GetWeaponColor() * colorScale
     local color = Color(wepColor.x * 255, wepColor.y * 255, wepColor.z * 255, 255)
-
-    render.SetMaterial(MAT_PHYSBEAM)
-
     local beamDrawn = false
     local beamWidth = 0.0
     local endPos
+    local beamParameters = self.BeamParameters
+    local effectParameters = self.EffectParameters
+
+    render.SetMaterial(MAT_PHYSBEAM)
 
     for i = PHYSCANNON_ENDCAP1, maxEndCap do
 
-        local beamdata = self.BeamParameters[i]
+        local beamdata = beamParameters[i]
         if beamdata == nil then
             continue
         end
@@ -2552,7 +2550,7 @@ function SWEP:DrawCoreBeams(owner, vm)
             beamdata.Lifetime = beamdata.Lifetime - FrameTime()
         end
 
-        local params = self.EffectParameters[i]
+        local params = effectParameters[i]
         if params == nil then
             continue
         end
@@ -2562,7 +2560,7 @@ function SWEP:DrawCoreBeams(owner, vm)
             continue
         end
 
-        if self:ShouldDrawUsingViewModel() == true then
+        if shouldDrawUsingViewModel == true then
             if owner ~= nil then
                 attachmentData = vm:GetAttachment(params.Attachment)
                 if attachmentData == nil then
@@ -2593,14 +2591,8 @@ function SWEP:DrawCoreBeams(owner, vm)
     end
 
     if beamDrawn == true and physcannon_glow:GetBool() == true and curTime >= self.NextBeamGlow then
-
-        local color = self:GetWeaponColor()
-        color.r = color.r * 255
-        color.g = color.g * 255
-        color.b = color.b * 255
-
         local brightness = 0.5
-        if self:IsMegaPhysCannon() == true then
+        if isMegaPhysCannon == true then
             brightness = 1
         end
 
@@ -2609,40 +2601,6 @@ function SWEP:DrawCoreBeams(owner, vm)
     end
 
 end
-
-local ATTACHMENTS_GAPS_FP =
-{
-    "fork1t",
-    "fork2t",
-}
-
-local ATTACHMENTS_GAPS_TP =
-{
-    "fork1t",
-    "fork2t",
-    "fork3t",
-}
-
-local ATTACHMENTS_GLOW_FP =
-{
-    "fork1b",
-    "fork1m",
-    "fork1t",
-    "fork2b",
-    "fork2m",
-    "fork2t"
-}
-
-local ATTACHMENTS_GLOW_TP =
-{
-    "fork1m",
-    "fork1t",
-    "fork1b",
-    "fork2m",
-    "fork2t",
-    "fork3m",
-    "fork3t",
-}
 
 function SWEP:SetupEffects()
 
@@ -2871,31 +2829,22 @@ function SWEP:StopEffects(stopSound)
 end
 
 function SWEP:GetWeaponColor()
-
     local owner = self:GetOwner()
-    local wepColor = Vector(1, 1, 1)
-
-    if IsValid(owner) == true then
+    local wepColor
+    if IsValid(owner) == true and owner:IsPlayer() == true then
         wepColor = owner:GetWeaponColor()
     else
-        local f = .3
-        local i = math.sin(CurTime()) * 32
-        local r = math.sin(f * i + 0 * math.pi / 3) * 127 + 128
-        local g = math.sin(f * i + 2 * math.pi / 3) * 127 + 128
-        local b = math.sin(f * i + 4 * math.pi / 3) * 127 + 128
-
-        wepColor.x = r / 255
-        wepColor.y = g / 255
-        wepColor.z = b / 255
+        wepColor = self:GetLastWeaponColor()
     end
-
     return wepColor
 end
 
 function SWEP:UpdateEffects()
 
     local owner = self:GetOwner()
-    if owner ~= NULL and IsValid(owner) and owner:GetActiveWeapon() ~= self then
+    local usingViewModel = self:ShouldDrawUsingViewModel()
+
+    if IsValid(owner) and owner:GetActiveWeapon() ~= self then
         if self.ProjectedTexture ~= nil then
             self.ProjectedTexture:Remove()
             self.ProjectedTexture = nil
@@ -2906,28 +2855,17 @@ function SWEP:UpdateEffects()
     self:StartEffects()
     self:UpdateGlow()
 
-    local owner = self:GetOwner()
-
     local colorMax = 128
-    if self:IsMegaPhysCannon() then
+    local isMegaPhysCannon = self:IsMegaPhysCannon()
+    if isMegaPhysCannon == true then
         colorMax = 255
     end
 
     local wepColor = self:GetWeaponColor()
-    if IsValid(owner) ~= true then
-        -- Manually change it we are right before a draw call.
-        MAT_WORLDMDL:SetVector("$selfillumtint", wepColor)
-    end
 
     local r = wepColor.x * colorMax
     local g = wepColor.y * colorMax
     local b = wepColor.z * colorMax
-    -- Update the 3 endpoints to rotate color
-
-    local spriteScale = 0.5
-    if self:ShouldDrawUsingViewModel() == false then
-        spriteScale = 1.0
-    end
 
     local pulseScale = 2
     if self:GetEffectState() == EFFECT_READY then
@@ -2938,28 +2876,29 @@ function SWEP:UpdateEffects()
 
     local pulseTime = CurTime() * pulseScale
     local pulse = 0.5 + (math.sin(pulseTime) * math.cos(pulseTime))
+    local effectParameters = self.EffectParameters
 
     for i = PHYSCANNON_GLOW1, PHYSCANNON_GLOW6 do
-        local data = self.EffectParameters[i]
+        local data = effectParameters[i]
         data.Scale:SetAbsolute( util.RandomFloat(0.075, 0.05) * (30 + (30 * pulse)) )
         data.Alpha:SetAbsolute( 100 + (util.RandomFloat(75, 128) * pulse) )
     end
 
     for i = PHYSCANNON_ENDCAP1, PHYSCANNON_ENDCAP3 do
-        local data = self.EffectParameters[i]
+        local data = effectParameters[i]
         if data == nil then continue end
         data.Scale:SetAbsolute( util.RandomFloat(3, 10) )
         data.Alpha:SetAbsolute( util.RandomFloat(200, 255) )
     end
 
-    for i,data in pairs(self.EffectParameters) do
+    for i,data in pairs(effectParameters) do
         data.Col = Color(r, g, b)
     end
 
-    if CLIENT and (self:IsMegaPhysCannon() == true or self.CurrentEffect == EFFECT_PULLING) then
+    if CLIENT and (isMegaPhysCannon == true or self.CurrentEffect == EFFECT_PULLING) then
 
         local endCapMax = PHYSCANNON_ENDCAP3
-        if self:ShouldDrawUsingViewModel() == true then
+        if usingViewModel == true then
             endCapMax = PHYSCANNON_ENDCAP2
         end
 
@@ -2991,7 +2930,7 @@ function SWEP:UpdateEffects()
                 color.b = color.b * 255
 
                 local brightness = 0.5
-                if self:IsMegaPhysCannon() == true then
+                if isMegaPhysCannon == true then
                     brightness = 1
                 end
 
