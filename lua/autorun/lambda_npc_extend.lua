@@ -70,11 +70,13 @@ if LAMBDA_FUNCS then
 
     end
 
+
 end -- if LAMBDA_FUNCS then
 	
     function META_NPC:CreateServerRagdoll(dmginfo, collisionGroup)
 
         local ragdoll = ents.Create("prop_ragdoll")
+        ragdoll:SetAngles(self:GetAngles())
         ragdoll:SetPos(self:GetPos())
         ragdoll:SetOwner(self)
         ragdoll:CopyAnimationDataFrom(self)
@@ -83,8 +85,22 @@ end -- if LAMBDA_FUNCS then
             ragdoll:AddEFlags(EFL_NO_DISSOLVE)
         end
 
+        if dmgInfo ~= nil then
         ragdoll:SetSaveValue("m_hKiller", dmginfo:GetInflictor())
+        end
         ragdoll:Spawn()
+
+        for i = 0, ragdoll:GetPhysicsObjectCount() - 1 do
+            local bone = ragdoll:GetPhysicsObjectNum(i)
+            if IsValid(bone) then
+                local bp, ba = self:GetBonePosition(ragdoll:TranslatePhysBoneToBone(i))
+                if bp and ba then
+                    bone:SetPos(bp)
+                    bone:SetAngles(ba)
+                end
+                bone:SetVelocity(self:GetVelocity())
+            end
+        end
 
         return ragdoll
 
