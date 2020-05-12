@@ -84,6 +84,11 @@ SWEP.WepSelectLetter    = "m"
 SWEP.IconFont           = "WeaponIconsSelected"
 SWEP.IconLetter         = "m"
 
+local max_movement_error = 18
+function game.PhysCannonSetMaxMovementError(err)
+	max_movement_error = tonumber(err) or 18
+end
+
 if CLIENT then
 
     SWEP.Slot = 0
@@ -1078,7 +1083,7 @@ function SWEP:UpdateObject()
 
     local err = controller:ComputeError()
     --DbgPrint(err)
-    if err >= 12 then
+    if err >= max_movement_error then
         return false
     end
 
