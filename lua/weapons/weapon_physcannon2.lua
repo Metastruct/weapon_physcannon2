@@ -603,6 +603,8 @@ function SWEP:PrimaryAttack()
 
             self:PuntRagdoll(ragdoll, fwd, tr)
 
+            hook.Run("OnPhysgunMegaRagdoll", ragdoll, owner, ent)
+
         end
 
         DbgPrint("Punt: " .. tostring(ent))
@@ -1559,6 +1561,8 @@ function SWEP:AttachObject(ent, tr)
         dmgInfo:SetDamageType(bor(DMG_PHYSGUN, DMG_REMOVENORAGDOLL))
 
         ent:TakeDamageInfo(dmgInfo)
+
+        hook.Run("OnPhysgunMegaRagdoll", ragdoll, owner, ent)
 
         ent = ragdoll
     end
