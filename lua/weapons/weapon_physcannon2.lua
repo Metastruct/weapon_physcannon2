@@ -76,8 +76,11 @@ SWEP.Weight = 5
 SWEP.AutoSwitchTo = false
 SWEP.AutoSwitchFrom = false
 SWEP.UseHands = true
-SWEP.ViewModel = "models/weapons/c_physcannon.mdl"
+SWEP.ViewModel = "models/weapons/c_superphyscannon.mdl"
+SWEP.ViewModel = "models/weapons/c_physcannon.mdl" -- does not shake uncontrollably
+
 SWEP.WorldModel = "models/weapons/w_Physics.mdl"
+SWEP.SuperSheet = Material"models/weapons/v_physcannon/v_superphyscannon_sheet"
 
 SWEP.WepSelectFont      = "WeaponIconsSelected"
 SWEP.WepSelectLetter    = "m"
@@ -262,7 +265,8 @@ local PHYSCANNON_BLAST_SPRITE = CreateMaterial("physcannon_blast",'Sprite',util.
 local PHYSCANNON_CORE_WARP = "particle/warp1_warp"
 
 local MAT_PHYSBEAM = Material("sprites/physbeam.vmt")
-local MAT_WORLDMDL = Material("models/weapons/w_physics/w_physics_sheet2")
+local MAT_WORLDMDL = Material("models/weapons/w_physics/w_physics_sheet")
+local MAT_WORLDMDLQ = Material("models/weapons/flare/shellside")
 
 local GLOW_UPDATE_DT = 1 / 120
 
@@ -277,7 +281,7 @@ function SWEP:SetupDataTables()
 
     self:NetworkVar("Int", 0, "EffectState")
     self:NetworkVar("Bool", 0, "ElementOpen")
-    self:NetworkVar("Bool", 1, "MegaEnabled")
+    --self:NetworkVar("Bool", 1, "MegaEnabled")
     self:NetworkVar("Float", 0, "ElementDestination")
     self:NetworkVar("Float", 1, "NextIdleTime")
     self:NetworkVar("Float", 2, "NextDenySoundTime")
@@ -285,6 +289,15 @@ function SWEP:SetupDataTables()
     self:NetworkVar("Vector", 0, "TargetOffset")
     self:NetworkVar("Angle", 0, "TargetAngle")
     self:NetworkVar("Vector", 10, "LastWeaponColor")
+end
+function SWEP:IsMegaEnabled()
+	return self:GetDTBool(1)
+end
+function SWEP:GetMegaEnabled()
+	return self:GetDTBool(1)
+end
+function SWEP:SetMegaEnabled(set)
+	return self:SetDTBool(1,set)
 end
 
 function SWEP:Initialize()
@@ -436,27 +449,33 @@ function SWEP:IsMegaPhysCannon()
     return self:GetMegaEnabled(false)
 end
 
-function SWEP:Supercharge()
+function SWEP:Supercharge(chargeAll)
 
-    game.SetGlobalState("super_phys_gun", GLOBAL_ON)
-
+	if chargeAll then
+    	game.SetGlobalState("super_phys_gun", GLOBAL_ON)
+	else
+		self:SetMegaEnabled(true)
+	end
+	
     self:SetSequence( self:SelectWeightedSequence( ACT_PHYSCANNON_UPGRADE ) )
     self:ResetSequenceInfo()
     self:UseTriggerBounds(true, 32.0)
 
-    for _,v in pairs(ents.FindByName("script_physcannon_upgrade")) do
-        v:Input("Trigger", self, self)
-    end
-
+	if chargeAll then
+	    for _,v in pairs(ents.FindByName("script_physcannon_upgrade")) do
+	        v:Input("Trigger", self, self)
+	    end
+	end
+	
     -- Allow pickup again.
-    self:AddSolidFlags( FSOLID_TRIGGER );
+    self:AddSolidFlags( FSOLID_TRIGGER )
     self:OpenElements()
 
 end
 
 function SWEP:AcceptInput(inputName, activator, callee, data)
     if inputName:iequals("Supercharge") then
-        self:Supercharge()
+        self:Supercharge(true)
         return true
     end
     return false
@@ -1445,10 +1464,12 @@ end
 function SWEP:ThinkHook()
 
     if SERVER then
-        if game_GetGlobalState("super_phys_gun") == GLOBAL_ON then
-            self:SetMegaEnabled(true)
-        else
-            self:SetMegaEnabled(false)
+    	local state = game_GetGlobalState("super_phys_gun")
+        if self.last_mega_enabled ==nil then
+        	self.last_mega_enabled = state
+        elseif state ~= self.last_mega_enabled then
+            self.last_mega_enabled = state
+            self:SetMegaEnabled(state)
         end
     else
         self:UpdateEffects()
@@ -2269,6 +2290,7 @@ function SWEP:DoEffect(effect, pos)
 
 end
 
+local COL_WORLD_NORMAL = Vector(2,1,0)
 function SWEP:DrawWorldModel()
     local effectState = self:GetEffectState(EFFECT_READY)
 
@@ -2276,16 +2298,41 @@ function SWEP:DrawWorldModel()
         self:DoEffect(effectState)
     end
 
-    local wepColor = self:GetWeaponColor()
-    MAT_WORLDMDL:SetVector("$selfillumtint", wepColor)
-
+    --local wepColor = self:GetWeaponColor()
+    
+    MAT_WORLDMDL:SetVector("$selfillumtint", COL_WORLD_NORMAL)
     self:UpdateElementPosition()
+    
+    if self:IsMegaPhysCannon() then
+    	-- nothing needs doing it seems
+    else
+		render.MaterialOverrideByIndex(0,MAT_WORLDMDLQ)
+		render.MaterialOverride(MAT_WORLDMDLQ)
+		render.MaterialOverrideByIndex(0,MAT_WORLDMDL)
+		render.MaterialOverride(MAT_WORLDMDL)
+	end
+	
     self:DrawModel()
+	render.MaterialOverride(nil)
+	render.MaterialOverrideByIndex(0,nil)
 end
 
 function SWEP:DrawWorldModelTranslucent()
     self:UpdateDrawUsingViewModel()
+    
+    if self:IsMegaPhysCannon() then
+    
+    else
+	    MAT_WORLDMDL:SetVector("$selfillumtint", COL_WORLD_NORMAL )
+		render.MaterialOverrideByIndex(0,MAT_WORLDMDLQ)
+		render.MaterialOverride(MAT_WORLDMDLQ)
+		render.MaterialOverrideByIndex(0,MAT_WORLDMDL)
+		render.MaterialOverride(MAT_WORLDMDL)
+	end
+	
     self:DrawModel()
+	render.MaterialOverride(nil)
+	render.MaterialOverrideByIndex(0,nil)
     self:DrawEffects()
 end
 
@@ -2972,8 +3019,17 @@ function SWEP:UpdateEffects()
     end
 
 end
+function SWEP:PreDrawViewModel( vm, weapon, ply )
+	if self:IsMegaPhysCannon() then
+		render.MaterialOverride(self.SuperSheet)
+	else
+		--
+	end
+end
+
 
 function SWEP:ViewModelDrawn(vm)
+	render.MaterialOverride(nil)
     self:UpdateDrawUsingViewModel()
     self:DrawEffects(vm)
 end
