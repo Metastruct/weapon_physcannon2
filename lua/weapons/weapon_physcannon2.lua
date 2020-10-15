@@ -3054,3 +3054,35 @@ function SWEP:DrawWeaponSelection( x, y, wide, tall, alpha )
     surface.DrawText( "m" )
 
 end
+
+if SERVER then
+	hook.Add("OnPhysgunMegaRagdoll", "weapon_physcannon", function(ragdoll, owner, ent)
+		SafeRemoveEntityDelayed(ragdoll, 120)
+		if not IsValid(owner) then return end
+		local t = owner.megaragdolls
+
+		if not t then
+			t = {}
+			owner.megaragdolls = t
+		end
+
+		table.insert(t, ragdoll)
+		local count = 0
+
+		for i = #t, 1, -1 do
+			local rag = t[i]
+
+			if rag:IsValid() then
+				count = count + 1
+			else
+				table.remove(t, i)
+			end
+		end
+
+		if count > 3 then
+			local rag = t[1]
+			table.remove(t, 1)
+			SafeRemoveEntityDelayed(rag, math.random() * 2 + 0.1)
+		end
+	end)
+end
