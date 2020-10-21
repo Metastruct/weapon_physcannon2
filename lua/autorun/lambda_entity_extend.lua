@@ -13,111 +13,111 @@ local female_bbox = Vector(21.857199, 20.744711, 71.528900)
 -- Credits to CapsAdmin
 local function EstimateModelGender(ent)
 
-    local mdl = ent:GetModel()
-    if not mdl then
-        return
-    end
+	local mdl = ent:GetModel()
+	if not mdl then
+		return
+	end
 
-    local headcrabAttachment = ent:LookupAttachment("headcrab")
-    if headcrabAttachment ~= 0 then
-        return "zombie"
-    end
+	local headcrabAttachment = ent:LookupAttachment("headcrab")
+	if headcrabAttachment ~= 0 then
+		return "zombie"
+	end
 
-    local ziplineAttachment = ent:LookupAttachment("zipline")
-    if ziplineAttachment ~= 0 then
-        return "combine"
-    end
+	local ziplineAttachment = ent:LookupAttachment("zipline")
+	if ziplineAttachment ~= 0 then
+		return "combine"
+	end
 
-    local seq
-    seq = ent:LookupSequence("d3_c17_07_Kidnap")
-    if seq ~= nil and seq > 0 then
-        return "combine"
-    end
+	local seq
+	seq = ent:LookupSequence("d3_c17_07_Kidnap")
+	if seq ~= nil and seq > 0 then
+		return "combine"
+	end
 
-    seq = ent:LookupSequence("walk_all")
-    if seq ~= nil and seq > 0 then
-        local info = ent:GetSequenceInfo(seq)
-        if info.bbmax == male_bbox then
-            return "male"
-        elseif info.bbmax == female_bbox then
-            return "female"
-        end
-    end
+	seq = ent:LookupSequence("walk_all")
+	if seq ~= nil and seq > 0 then
+		local info = ent:GetSequenceInfo(seq)
+		if info.bbmax == male_bbox then
+			return "male"
+		elseif info.bbmax == female_bbox then
+			return "female"
+		end
+	end
 
-    if mdl:lower():find("female") or
-        ent:LookupBone("ValveBiped.Bip01_R_Pectoral") or
-        ent:LookupBone("ValveBiped.Bip01_L_Pectoral")
-    then
-        return "female"
-    end
+	if mdl:lower():find("female") or
+		ent:LookupBone("ValveBiped.Bip01_R_Pectoral") or
+		ent:LookupBone("ValveBiped.Bip01_L_Pectoral")
+	then
+		return "female"
+	end
 
-    return "male"
+	return "male"
 
 end
 
 function ENTITY_META:GetActivator()
 
-    -- Scripted entities don't have this field so we have to do it ourselves.
-    if self.LambdaLastActivator ~= nil then
-        return self.LambdaLastActivator
-    end
+	-- Scripted entities don't have this field so we have to do it ourselves.
+	if self.LambdaLastActivator ~= nil then
+		return self.LambdaLastActivator
+	end
 
-    -- Native entities.
-    return self:GetInternalVariable("m_hActivator")
+	-- Native entities.
+	return self:GetInternalVariable("m_hActivator")
 
 end    
 
 function ENTITY_META:GetGender()
 
-    local oldCache = false
-    local mdl = self:GetModel()
+	local oldCache = false
+	local mdl = self:GetModel()
 
-    if self.CachedGenderModel == nil or self.CachedGenderModel ~= mdl then
-        self.CachedGenderModel = mdl
-        oldCache = true
-    end
-    if oldCache == true then
-        self.CachedGender = EstimateModelGender(self)
-    end
-    return self.CachedGender
+	if self.CachedGenderModel == nil or self.CachedGenderModel ~= mdl then
+		self.CachedGenderModel = mdl
+		oldCache = true
+	end
+	if oldCache == true then
+		self.CachedGender = EstimateModelGender(self)
+	end
+	return self.CachedGender
 
 end
 
 function ENTITY_META:AddSpawnFlags(flags)
 
-    local newFlags = bit.bor(self:GetSpawnFlags(), flags)
-    self:SetKeyValue("spawnflags", newFlags)
+	local newFlags = bit.bor(self:GetSpawnFlags(), flags)
+	self:SetKeyValue("spawnflags", newFlags)
 
 end
 
 function ENTITY_META:RemoveSpawnFlags(flags)
 
-    local newFlags = bit.band(self:GetSpawnFlags(), bit.bnot(flags))
-    self:SetKeyValue("spawnflags", newFlags)
+	local newFlags = bit.band(self:GetSpawnFlags(), bit.bnot(flags))
+	self:SetKeyValue("spawnflags", newFlags)
 
 end
 
 function ENTITY_META:IsDoor()
-    local class = self:GetClass()
-    return class == "prop_door_rotating" or class == "func_door" or class == "func_door_rotating"
+	local class = self:GetClass()
+	return class == "prop_door_rotating" or class == "func_door" or class == "func_door_rotating"
 end
 
 end -- if LAMBDA
 
 function ENTITY_META:GetModelInfo()
 
-    local mdl = self:GetModel()
-    if self.CachedModelDataInfo ~= nil and self.CachedModelDataFile == mdl then
-        return self.CachedModelDataInfo
-    end
+	local mdl = self:GetModel()
+	if self.CachedModelDataInfo ~= nil and self.CachedModelDataFile == mdl then
+		return self.CachedModelDataInfo
+	end
 
-    local mdlInfo = util.GetModelInfo(mdl)
-    if mdlInfo ~= nil and mdlInfo.KeyValues ~= nil then
-        self.CachedModelDataInfo = util.KeyValuesToTable(mdlInfo.KeyValues)
-        self.CachedModelDataFile = mdl
-    end
+	local mdlInfo = util.GetModelInfo(mdl)
+	if mdlInfo ~= nil and mdlInfo.KeyValues ~= nil then
+		self.CachedModelDataInfo = util.KeyValuesToTable(mdlInfo.KeyValues)
+		self.CachedModelDataFile = mdl
+	end
 
-    return self.CachedModelDataInfo
+	return self.CachedModelDataInfo
 
 end
 
@@ -125,23 +125,23 @@ if LAMBDA_FUNCS then
 
 function ENTITY_META:ShouldShootMissTarget(attacker)
 
-    if self:IsPlayer() == false then
-        return false
-    end
+	if self:IsPlayer() == false then
+		return false
+	end
 
-    local curTime = CurTime()
+	local curTime = CurTime()
 
-    if self.TargetFindTime == nil then
-        self.TargetFindTime = curTime + util.RandomFloat(3, 5)
-        return false
-    end
+	if self.TargetFindTime == nil then
+		self.TargetFindTime = curTime + util.RandomFloat(3, 5)
+		return false
+	end
 
-    if curTime > self.TargetFindTime then
-        self.TargetFindTime = curTime + util.RandomFloat(3, 5)
-        return true
-    end
+	if curTime > self.TargetFindTime then
+		self.TargetFindTime = curTime + util.RandomFloat(3, 5)
+		return true
+	end
 
-    return false
+	return false
 
 end
 
@@ -149,96 +149,96 @@ local MISS_TARGET_RADIUS = Vector(150, 150, 100)
 
 function ENTITY_META:FindMissTarget()
 
-    local pos = self:GetPos()
-    local nearby = ents.FindInBox(pos - MISS_TARGET_RADIUS, pos + MISS_TARGET_RADIUS)
-    local candidates = {}
-    local isPlayer = self:IsPlayer()
+	local pos = self:GetPos()
+	local nearby = ents.FindInBox(pos - MISS_TARGET_RADIUS, pos + MISS_TARGET_RADIUS)
+	local candidates = {}
+	local isPlayer = self:IsPlayer()
 
-    for _,v in pairs(nearby) do
-        local class = v:GetClass()
-        if isPlayer then
-            if self:InsideViewCone(v) == false then
-                continue
-            end
-        end
-        if class == "prop_dynamic" or class == "prop_physics" or class == "physics_prop" then 
-            table.insert(candidates, v)
-        end
-        if #candidates >= 16 then
-            break
-        end
-    end
+	for _,v in pairs(nearby) do
+		local class = v:GetClass()
+		if isPlayer then
+			if self:InsideViewCone(v) == false then
+				continue
+			end
+		end
+		if class == "prop_dynamic" or class == "prop_physics" or class == "physics_prop" then 
+			table.insert(candidates, v)
+		end
+		if #candidates >= 16 then
+			break
+		end
+	end
 
-    if #candidates == 0 then
-        return nil
-    end
+	if #candidates == 0 then
+		return nil
+	end
 
-    return table.Random(candidates)
+	return table.Random(candidates)
 
 end
 
 local ITEM_CLASSES =
 {
-    ["item_ammo_357"] = true,
-    ["item_ammo_357_large"] = true,
-    ["item_ammo_ar2"] = true,
-    ["item_ammo_ar2_altfire"] = true,
-    ["item_ammo_ar2_large"] = true,
-    ["item_ammo_crate"] = true,
-    ["item_ammo_crossbow"] = true,
-    ["item_ammo_pistol"] = true,
-    ["item_ammo_pistol_large"] = true,
-    ["item_ammo_smg1"] = true,
-    ["item_ammo_smg1_grenade"] = true,
-    ["item_ammo_smg1_large"] = true,
-    ["item_battery"] = true,
-    ["item_box_buckshot"] = true,
-    ["item_dynamic resupply"] = true,
-    ["item_healthcharger"] = true,
-    ["item_healthkit"] = true,
-    ["item_healthvial"] = true,
-    ["item_item_crate"] = true,
-    ["item_rpg_round"] = true,
-    ["item_suit"] = true,
-    ["item_suitcharger"] = true,
-    ["weapon_frag"] = true,
-    ["weapon_slam"] = true,
+	["item_ammo_357"] = true,
+	["item_ammo_357_large"] = true,
+	["item_ammo_ar2"] = true,
+	["item_ammo_ar2_altfire"] = true,
+	["item_ammo_ar2_large"] = true,
+	["item_ammo_crate"] = true,
+	["item_ammo_crossbow"] = true,
+	["item_ammo_pistol"] = true,
+	["item_ammo_pistol_large"] = true,
+	["item_ammo_smg1"] = true,
+	["item_ammo_smg1_grenade"] = true,
+	["item_ammo_smg1_large"] = true,
+	["item_battery"] = true,
+	["item_box_buckshot"] = true,
+	["item_dynamic resupply"] = true,
+	["item_healthcharger"] = true,
+	["item_healthkit"] = true,
+	["item_healthvial"] = true,
+	["item_item_crate"] = true,
+	["item_rpg_round"] = true,
+	["item_suit"] = true,
+	["item_suitcharger"] = true,
+	["weapon_frag"] = true,
+	["weapon_slam"] = true,
 }
 
 function ENTITY_META:IsItem()
-    local class = self:GetClass()
-    return ITEM_CLASSES[class] == true
+	local class = self:GetClass()
+	return ITEM_CLASSES[class] == true
 end
 
 end -- if LAMBDA_FUNCS
 
 function ENTITY_META:PhysicsImpactSound(chan, vol, speed)
 
-    local mdlInfo = self:GetModelInfo()
-    if mdlInfo == nil then
-        return
-    end
+	local mdlInfo = self:GetModelInfo()
+	if mdlInfo == nil then
+		return
+	end
 
-    local solid = mdlInfo["solid"];
+	local solid = mdlInfo["solid"];
 
-    if solid == nil then
-        return
-    end
+	if solid == nil then
+		return
+	end
 
-    local surfaceprop = solid["surfaceprop"]
-    if surfaceprop == nil then
-        return
-    end
+	local surfaceprop = solid["surfaceprop"]
+	if surfaceprop == nil then
+		return
+	end
 
-    local data = surfacedata.GetByName(surfaceprop)
-    if data == nil then
-        return
-    end
+	local data = surfacedata.GetByName(surfaceprop)
+	if data == nil then
+		return
+	end
 
-    local snd = data["impactsoft"]
-    if snd ~= nil then
-        self:EmitSound(snd)
-    end
+	local snd = data["impactsoft"]
+	if snd ~= nil then
+		self:EmitSound(snd)
+	end
 
 end
 
@@ -250,27 +250,27 @@ DOOR_STATE_OPEN = 2
 DOOR_STATE_CLOSING = 3
 
 function ENTITY_META:GetDoorState()
-    return self:GetInternalVariable("m_eDoorState")
+	return self:GetInternalVariable("m_eDoorState")
 end
 
 function ENTITY_META:IsDoorClosing()
-    return self:GetDoorState() == DOOR_STATE_CLOSING
+	return self:GetDoorState() == DOOR_STATE_CLOSING
 end
 
 function ENTITY_META:IsDoorClosed()
-    return self:GetDoorState() == DOOR_STATE_CLOSED
+	return self:GetDoorState() == DOOR_STATE_CLOSED
 end
 
 function ENTITY_META:IsDoorOpening()
-    return self:GetDoorState() == DOOR_STATE_OPENING
+	return self:GetDoorState() == DOOR_STATE_OPENING
 end
 
 function ENTITY_META:IsDoorOpen()
-    return self:GetDoorState() == DOOR_STATE_OPEN
+	return self:GetDoorState() == DOOR_STATE_OPEN
 end
 
 function ENTITY_META:IsDoorLocked()
-    return self:GetInternalVariable("m_bLocked") or false
+	return self:GetInternalVariable("m_bLocked") or false
 end
 
 OVERLAY_TEXT_BIT            =   0x00000001      -- show text debug overlay for this entity
@@ -304,33 +304,33 @@ OVERLAY_NPC_RELATION_BIT    =   0x20000000      -- show relationships between ta
 OVERLAY_VIEWOFFSET          =   0x40000000      -- show view offset
 
 function ENTITY_META:AddDebugOverlays(f)
-    local flags = self:GetDebugOverlays()
-    flags = bit.bor(flags, tonumber(f or 0))
-    self:SetSaveValue("m_debugOverlays", flags)
+	local flags = self:GetDebugOverlays()
+	flags = bit.bor(flags, tonumber(f or 0))
+	self:SetSaveValue("m_debugOverlays", flags)
 end
 
 function ENTITY_META:RemoveDebugOverlays(f)
-    local flags = self:GetDebugOverlays()
-    flags = bit.band(flags, bit.bnot(f))
-    self:SetSaveValue("m_debugOverlays", flags)
+	local flags = self:GetDebugOverlays()
+	flags = bit.band(flags, bit.bnot(f))
+	self:SetSaveValue("m_debugOverlays", flags)
 end
 
 function ENTITY_META:GetDebugOverlays()
-    return tonumber(self:GetInternalVariable("m_debugOverlays", 0))
+	return tonumber(self:GetInternalVariable("m_debugOverlays", 0))
 end
 
 -- Vehicles
 function ENTITY_META:IsGunEnabled()
-    return self:GetInternalVariable("EnableGun", false)
+	return self:GetInternalVariable("EnableGun", false)
 end
 
 -- Damage
 function ENTITY_META:GetLastDamageType()
-    return self.LastReceivedDamageType or 0
+	return self.LastReceivedDamageType or 0
 end
 
 function ENTITY_META:SetLastDamageType(dmgType)
-    self.LastReceivedDamageType = dmgType
+	self.LastReceivedDamageType = dmgType
 end
 
 -- caps
@@ -355,47 +355,47 @@ FCAP_WCEDIT_POSITION        = 0x40000000        -- Can change position and updat
 FCAP_DONT_SAVE              = 0x80000000        -- Don't save this
 
 function ENTITY_META:HasObjectCaps(caps)
-    return bit.band(self:ObjectCaps(), caps) ~= 0
+	return bit.band(self:ObjectCaps(), caps) ~= 0
 end
 
 function ENTITY_META:GetObjectCaps()
-    return self:ObjectCaps()
+	return self:ObjectCaps()
 end
 
 function ENTITY_META:EnableRespawn(state, time)
-    -- On shutdown this actually errors thats why this check exists.
-    if not IsValid(self) then
-        return
-    end
+	-- On shutdown this actually errors thats why this check exists.
+	if not IsValid(self) then
+		return
+	end
 
-    if state == true then
-        time = time or 1
+	if state == true then
+		time = time or 1
 
-        self:CallOnRemove("LambdaRespawn", function(ent)
-            local class = ent:GetClass()
-            local pos = ent:GetPos()
-            local ang = ent:GetAngles()
-            local mdl = ent:GetModel()
+		self:CallOnRemove("LambdaRespawn", function(ent)
+			local class = ent:GetClass()
+			local pos = ent:GetPos()
+			local ang = ent:GetAngles()
+			local mdl = ent:GetModel()
 
-            timer.Simple(time, function()
-                local new = ents.Create(class)
-                new:SetPos(pos)
-                new:SetAngles(ang)
-                new:SetModel(mdl)
-                new:Spawn()
-                new:EnableRespawn(true)
-            end)
+			timer.Simple(time, function()
+				local new = ents.Create(class)
+				new:SetPos(pos)
+				new:SetAngles(ang)
+				new:SetModel(mdl)
+				new:Spawn()
+				new:EnableRespawn(true)
+			end)
 
-        end)
+		end)
 
-    else
-        self:RemoveCallOnRemove("LambdaRespawn")
-    end
+	else
+		self:RemoveCallOnRemove("LambdaRespawn")
+	end
 
 end
 
 function ENTITY_META:GetKeyValueTable()
-    return table.Copy(self.LambdaKeyValues or {})
+	return table.Copy(self.LambdaKeyValues or {})
 end
 
 end -- if LAMBDA_FUNCS
@@ -413,103 +413,103 @@ CHAR_TEX_SNOW           = 'J'
 
 function ENTITY_META:IsVPhysicsFlesh()
 
-    if CLIENT then
-        -- Since they dont have physics this is our best bet.
-        local class = self:GetClass()
-        if class == "prop_ragdoll" then
-            return true
-        end
-    end
+	if CLIENT then
+		-- Since they dont have physics this is our best bet.
+		local class = self:GetClass()
+		if class == "prop_ragdoll" then
+			return true
+		end
+	end
 
-    for i = 0, self:GetPhysicsObjectCount() - 1 do
+	for i = 0, self:GetPhysicsObjectCount() - 1 do
 
-        local phys = self:GetPhysicsObjectNum( i )
-        local mat = phys:GetMaterial()
-        --DbgPrint("MAT:" .. tostring(mat))
-        local surfdata = surfacedata.GetByName(mat)
-        if surfdata ~= nil then
-            local matType = surfdata["gamematerial"]
-            if matType == CHAR_TEX_ANTLION or matType == CHAR_TEX_FLESH or matType == CHAR_TEX_BLOODYFLESH or matType == CHAR_TEX_ALIENFLESH then
-                return true
-            end
-        end
-    end
+		local phys = self:GetPhysicsObjectNum( i )
+		local mat = phys:GetMaterial()
+		--DbgPrint("MAT:" .. tostring(mat))
+		local surfdata = surfacedata.GetByName(mat)
+		if surfdata ~= nil then
+			local matType = surfdata["gamematerial"]
+			if matType == CHAR_TEX_ANTLION or matType == CHAR_TEX_FLESH or matType == CHAR_TEX_BLOODYFLESH or matType == CHAR_TEX_ALIENFLESH then
+				return true
+			end
+		end
+	end
 
-    return false
+	return false
 
 end
 
 function ENTITY_META:GetRootMoveParent()
-    local ent = self
-    local parent = ent:GetMoveParent()
-    while IsValid(parent) do
-        ent = parent
-        parent = ent:GetMoveParent()
-    end
-    return ent
+	local ent = self
+	local parent = ent:GetMoveParent()
+	while IsValid(parent) do
+		ent = parent
+		parent = ent:GetMoveParent()
+	end
+	return ent
 end
 
 function ENTITY_META:GetPhysMass()
-    local mass = 0.0
-    for i = 0, self:GetPhysicsObjectCount() - 1 do
-        local phys = self:GetPhysicsObjectNum(i)
-        if IsValid(phys) then
-            mass = mass + phys:GetMass()
-        end
-    end
-    return mass
+	local mass = 0.0
+	for i = 0, self:GetPhysicsObjectCount() - 1 do
+		local phys = self:GetPhysicsObjectNum(i)
+		if IsValid(phys) then
+			mass = mass + phys:GetMass()
+		end
+	end
+	return mass
 end
 
 function ENTITY_META:CanBecomeRagdoll()
-    local seq = self:SelectWeightedSequence(ACT_DIERAGDOLL)
-    if seq == ACT_INVALID then
-        return false
-    end
-    if self:IsFlagSet(FL_TRANSRAGDOLL) then
-        return false
-    end
-    return true
+	local seq = self:SelectWeightedSequence(ACT_DIERAGDOLL)
+	if seq == ACT_INVALID then
+		return false
+	end
+	if self:IsFlagSet(FL_TRANSRAGDOLL) then
+		return false
+	end
+	return true
 end
 
 function ENTITY_META:CopyAnimationDataFrom(other)
 
-    self:SetModel(other:GetModel() or "")
-    self:SetCycle(other:GetCycle())
-    self:RemoveEffects(self:GetEffects()) -- Clear, no set available.
-    self:AddEffects(other:GetEffects())
-    self:SetSequence(other:GetSequence())
+	self:SetModel(other:GetModel() or "")
+	self:SetCycle(other:GetCycle())
+	self:RemoveEffects(self:GetEffects()) -- Clear, no set available.
+	self:AddEffects(other:GetEffects())
+	self:SetSequence(other:GetSequence())
 
-    local animTime = other:GetInternalVariable("m_flAnimTime")
-    self:SetSaveValue("m_flAnimTime", animTime)
-    self:SetSkin(other:GetSkin())
+	local animTime = other:GetInternalVariable("m_flAnimTime")
+	self:SetSaveValue("m_flAnimTime", animTime)
+	self:SetSkin(other:GetSkin())
 
 end
 
 function ENTITY_META:CanTakeDamage()
 
-    local data = self:GetInternalVariable("m_takedamage")
-    if data ~= nil then
-        return data ~= 0 -- DAMAGE_NO
-    else
-        if self:IsNPC() == false and self:IsPlayer() == false and self:IsVehicle() == false then 
-            return false
-        end
-    end
+	local data = self:GetInternalVariable("m_takedamage")
+	if data ~= nil then
+		return data ~= 0 -- DAMAGE_NO
+	else
+		if self:IsNPC() == false and self:IsPlayer() == false and self:IsVehicle() == false then 
+			return false
+		end
+	end
 
-    return true
+	return true
 
 end
 
 function ENTITY_META:SetBlocksLOS( bBlocksLOS )
-    if bBlocksLOS == true then
-        self:RemoveEFlags( EFL_DONTBLOCKLOS )
-    else
-        self:AddEFlags( EFL_DONTBLOCKLOS )
-    end
+	if bBlocksLOS == true then
+		self:RemoveEFlags( EFL_DONTBLOCKLOS )
+	else
+		self:AddEFlags( EFL_DONTBLOCKLOS )
+	end
 end
 
 function ENTITY_META:BlocksLOS( )
-    return self:IsEFlagSet(EFL_DONTBLOCKLOS) == false
+	return self:IsEFlagSet(EFL_DONTBLOCKLOS) == false
 end
 
 do return end
