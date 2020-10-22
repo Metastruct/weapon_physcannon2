@@ -2310,13 +2310,13 @@ function SWEP:DrawWorldModel()
 		--render.MaterialOverrideByIndex(0,MAT_WORLDMDLQ)
 
 		-- Here we override sheet1 and sheet2 with the gravity gun material
-		render.MaterialOverrideByIndex(0,MAT_WORLDMDL)
+		--render.MaterialOverrideByIndex(0,MAT_WORLDMDL)
 		render.MaterialOverrideByIndex(1,MAT_WORLDMDL)
 	end
 	
 	self:DrawModel()
 
-	render.MaterialOverrideByIndex(0,nil)
+	--render.MaterialOverrideByIndex(0,nil)
 	render.MaterialOverrideByIndex(1,nil)
 end
 
@@ -2329,12 +2329,12 @@ function SWEP:DrawWorldModelTranslucent()
 		MAT_WORLDMDL:SetVector("$selfillumtint", COL_WORLD_NORMAL )
 		--render.MaterialOverrideByIndex(0,MAT_WORLDMDLQ)
 
-		render.MaterialOverrideByIndex(0,MAT_WORLDMDL)
+	--	render.MaterialOverrideByIndex(0,MAT_WORLDMDL)
 		render.MaterialOverrideByIndex(1,MAT_WORLDMDL)
 	end
 	
 	self:DrawModel()
-	render.MaterialOverrideByIndex(0,nil)
+	--render.MaterialOverrideByIndex(0,nil)
 	render.MaterialOverrideByIndex(1,nil)
 	self:DrawEffects()
 end
