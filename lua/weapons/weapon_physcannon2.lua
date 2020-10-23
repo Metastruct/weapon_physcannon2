@@ -297,6 +297,7 @@ function SWEP:GetMegaEnabled()
 	return self:GetDTBool(1)
 end
 function SWEP:SetMegaEnabled(set)
+	self:SetSkin(set and 1 or 0)
 	return self:SetDTBool(1,set)
 end
 
@@ -362,7 +363,7 @@ function SWEP:Initialize()
 	self:DoEffect(EFFECT_CLOSED)
 	self:CloseElements()
 	self:SetElementDestination(0)
-	self:SetSkin(1)
+	self:SetSkin(0)
 	if SERVER then
 		self:SetLastWeaponColor(VectorRand(0.0, 1.0))
 	end
@@ -2299,43 +2300,35 @@ function SWEP:DrawWorldModel()
 	end
 
 	--local wepColor = self:GetWeaponColor()
-
-	MAT_WORLDMDL:SetVector("$selfillumtint", COL_WORLD_NORMAL)
 	self:UpdateElementPosition()
 
+	--[[ We just use SetSkin instead, render override is cursed.
 	if self:IsMegaPhysCannon() then
-		-- nothing needs doing it seems
 	else
-		-- I don't see a reason for this to be here, but I'll keep it incase, Also this would just be overriden anyway?
-		--render.MaterialOverrideByIndex(0,MAT_WORLDMDLQ)
-
-		-- Here we override sheet1 and sheet2 with the gravity gun material
-		--render.MaterialOverrideByIndex(0,MAT_WORLDMDL)
+		MAT_WORLDMDL:SetVector("$selfillumtint", COL_WORLD_NORMAL )
 		render.MaterialOverrideByIndex(1,MAT_WORLDMDL)
 	end
-	
 	self:DrawModel()
-
-	--render.MaterialOverrideByIndex(0,nil)
 	render.MaterialOverrideByIndex(1,nil)
+	]]
+
+	self:DrawModel()
 end
 
 function SWEP:DrawWorldModelTranslucent()
 	self:UpdateDrawUsingViewModel()
 
+	--[[ We just use SetSkin instead, render override is cursed.
 	if self:IsMegaPhysCannon() then
-
 	else
 		MAT_WORLDMDL:SetVector("$selfillumtint", COL_WORLD_NORMAL )
-		--render.MaterialOverrideByIndex(0,MAT_WORLDMDLQ)
-
-	--	render.MaterialOverrideByIndex(0,MAT_WORLDMDL)
 		render.MaterialOverrideByIndex(1,MAT_WORLDMDL)
 	end
-	
 	self:DrawModel()
-	--render.MaterialOverrideByIndex(0,nil)
 	render.MaterialOverrideByIndex(1,nil)
+	]]
+
+	self:DrawModel()
 	self:DrawEffects()
 end
 
