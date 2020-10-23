@@ -265,8 +265,8 @@ local PHYSCANNON_BLAST_SPRITE = CreateMaterial("physcannon_blast",'Sprite',util.
 local PHYSCANNON_CORE_WARP = "particle/warp1_warp"
 
 local MAT_PHYSBEAM = Material("sprites/physbeam.vmt")
-local MAT_WORLDMDL = Material("models/weapons/w_physics/w_physics_sheet")
-local MAT_WORLDMDLQ = Material("models/weapons/flare/shellside")
+--local MAT_WORLDMDL = Material("models/weapons/w_physics/w_physics_sheet")
+--local MAT_WORLDMDLQ = Material("models/weapons/flare/shellside")
 
 local GLOW_UPDATE_DT = 1 / 120
 
@@ -1221,9 +1221,9 @@ function SWEP:CloseElements()
 	self:WeaponSound("Weapon_PhysCannon.CloseClaws")
 	self:SetElementOpen(false)
 
-	if self:IsMegaPhysCannon() == true then
-		self:SendWeaponAnim(ACT_VM_IDLE)
-	end
+	--if self:IsMegaPhysCannon() == true then --Reduntant, would never get called
+	--	self:SendWeaponAnim(ACT_VM_IDLE)
+	--end
 
 	self:DoEffect(EFFECT_CLOSED)
 
@@ -1694,6 +1694,7 @@ function SWEP:DetachObject(launched)
 		DbgPrint(self, "No valid controller")
 		return
 	end
+
 	if not controller.IsObjectAttached then
 		print("[Physcannon 2] Controller is not controller?? It is: ",controller)
 		if SERVER then self:Remove() end
@@ -1706,6 +1707,7 @@ function SWEP:DetachObject(launched)
 
 	local ent = controller:GetAttachedObject()
 	if IsValid(ent) ~= true then
+		controller:DetachObject()
 		DbgPrint(self, "Invalid attached object")
 		return
 	end
@@ -1713,6 +1715,7 @@ function SWEP:DetachObject(launched)
 	local phys = ent:GetPhysicsObject()
 	if IsValid(phys) ~= true then
 		DbgPrint("No physics object")
+		controller:DetachObject()
 		return
 	end
 
@@ -2242,7 +2245,6 @@ function SWEP:DoEffectLaunch(pos)
 end
 
 function SWEP:DoEffectIdle()
-
 end
 
 function SWEP:DoEffectPulling()
@@ -2335,21 +2337,20 @@ end
 function SWEP:Holster(ent)
 	DbgPrint(self, "Holster")
 
-	if not IsFirstTimePredicted() then
-		return
-	end
-
 	local controller = self:GetMotionController()
 	if IsValid(controller) and controller:IsObjectAttached() == true then
 		return false
+	end
+
+	self:SendWeaponAnim(ACT_VM_HOLSTER) --Send animation before prediction check, or it breaks it (It internally calls it)
+	if not IsFirstTimePredicted() then
+		return
 	end
 
 	self:StopLoopingSounds()
 	self:StopEffects()
 	self:DetachObject()
 	self.ShouldDrawGlow = false
-
-	self:SendWeaponAnim(ACT_VM_HOLSTER)
 
 	return true
 end
