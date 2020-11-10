@@ -516,7 +516,7 @@ function SWEP:PrimaryAttack()
 
 	DbgPrint(self, "PrimaryAttack")
 
-	local owner = self.Owner
+	local owner = self:GetOwner()
 	if IsValid(owner) ~= true then
 		return
 	end
@@ -655,7 +655,7 @@ end
 
 function SWEP:CanSecondaryAttack()
 
-	local owner = self.Owner
+	local owner = self:GetOwner()
 	if IsValid(owner) ~= true then
 		DbgPrint("Invalid owner")
 		return false
@@ -754,7 +754,7 @@ function SWEP:FindObjectInCone(start, fwd, coneSize)
 			start = start,
 			endpos = v:WorldSpaceCenter(),
 			mask = bor(MASK_SHOT, CONTENTS_GRATE),
-			filter = self.Owner
+			filter = self:GetOwner()
 		})
 
 		if tr.Entity == v then
@@ -811,7 +811,7 @@ function SWEP:FindObjectInConeMega(start, fwd, coneSize, ballCone, onlyCombineBa
 			start = start,
 			endpos = v:WorldSpaceCenter(),
 			mask = bor(MASK_SHOT, CONTENTS_GRATE),
-			filter = self.Owner
+			filter = self:GetOwner()
 		})
 
 		if tr.Entity == v then
@@ -997,7 +997,7 @@ end
 
 function SWEP:FindObject()
 
-	local owner = self.Owner
+	local owner = self:GetOwner()
 	if IsValid(owner) ~= true then
 		return
 	end
@@ -1092,8 +1092,7 @@ end
 
 function SWEP:UpdateObject()
 
-	local owner = self.Owner
-
+	local owner = self:GetOwner()
 	if IsValid(owner) ~= true then
 		return false
 	end
@@ -1232,7 +1231,7 @@ end
 function SWEP:WeaponIdle()
 
 	local owner = self:GetOwner()
-	if owner == nil or owner == NULL then
+	if IsValid(owner) ~= true then
 		return
 	end
 
@@ -1284,7 +1283,7 @@ function SWEP:UpdateElementPosition()
 		end
 
 		local vm = owner:GetViewModel()
-		if vm ~= nil then
+		if IsValid(vm) then
 			vm:SetPoseParameter("active", elemPos)
 		end
 	else
@@ -1317,7 +1316,7 @@ function SWEP:CheckForTarget()
 	end
 
 	local owner = self:GetOwner()
-	if owner == nil then
+	if IsValid(owner) ~= true then
 		return
 	end
 
@@ -1544,7 +1543,7 @@ function SWEP:AttachObject(ent, tr)
 
 	DbgPrint(self, "AttachObject", ent)
 
-	local owner = self.Owner
+	local owner = self:GetOwner()
 	if IsValid(owner) ~= true then
 		return
 	end
@@ -1763,7 +1762,7 @@ end
 
 function SWEP:PrimaryFireEffect()
 
-	local owner = self.Owner
+	local owner = self:GetOwner()
 	if IsValid(owner) ~= true then
 		return
 	end
@@ -1886,7 +1885,7 @@ function SWEP:PuntVPhysics(ent, fwd, tr)
 	if SERVER then
 
 		local dmgInfo = DamageInfo()
-		dmgInfo:SetAttacker(self.Owner)
+		dmgInfo:SetAttacker(owner)
 		dmgInfo:SetInflictor(self)
 		dmgInfo:SetDamage(0)
 		dmgInfo:SetDamageType(DMG_PHYSGUN)
@@ -1970,7 +1969,7 @@ function SWEP:PuntRagdoll(ent, fwd, tr)
 	if SERVER then
 
 		local dmgInfo = DamageInfo()
-		dmgInfo:SetAttacker(self.Owner)
+		dmgInfo:SetAttacker(owner)
 		dmgInfo:SetInflictor(self)
 		dmgInfo:SetDamage(0)
 		dmgInfo:SetDamageType(DMG_PHYSGUN)
