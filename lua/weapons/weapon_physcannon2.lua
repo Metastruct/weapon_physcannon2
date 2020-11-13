@@ -1,4 +1,5 @@
 -- WIP! Don't touch me
+--easylua.StartWeapon("weapon_physcannon")
 if SERVER then
 	AddCSLuaFile()
 end
@@ -363,7 +364,7 @@ function SWEP:Initialize()
 	self:DoEffect(EFFECT_CLOSED)
 	self:CloseElements()
 	self:SetElementDestination(0)
-	self:SetSkin(0)
+	self:SetSkin(self:IsMegaEnabled() and 1 or 0)
 	if SERVER then
 		self:SetLastWeaponColor(VectorRand(0.0, 1.0))
 	end
@@ -474,8 +475,9 @@ function SWEP:Supercharge(chargeAll)
 
 end
 
-function SWEP:AcceptInput(inputName, activator, callee, data)
-	if inputName:iequals("Supercharge") then
+function SWEP:AcceptInput(inputName, activator, caller, data)
+	--if inputName:iequals("Supercharge") then --iequals??? not part of string library
+	if inputName == "Supercharge" then
 		self:Supercharge(true)
 		return true
 	end
@@ -517,17 +519,14 @@ function SWEP:PrimaryAttack()
 	DbgPrint(self, "PrimaryAttack")
 
 	local owner = self:GetOwner()
-	if IsValid(owner) ~= true then
+	if not IsValid(owner) then
 		return
 	end
 
 	self:SetNextPrimaryFire(CurTime() + 0.5)
 
-	local controller = self:GetMotionController()
-
-	if controller:IsObjectAttached() then
-		local ent = controller:GetAttachedObject()
-
+	if self:IsObjectAttached() then
+		local ent = self:GetAttachedObject()
 		-- Make sure its in range.
 		local dist = (ent:WorldSpaceCenter() - owner:WorldSpaceCenter()):Length()
 		if dist > physcannon_tracelength:GetFloat() then
@@ -656,7 +655,7 @@ end
 function SWEP:CanSecondaryAttack()
 
 	local owner = self:GetOwner()
-	if IsValid(owner) ~= true then
+	if not IsValid(owner) then
 		DbgPrint("Invalid owner")
 		return false
 	end
@@ -679,10 +678,10 @@ function SWEP:SecondaryAttack()
 		SuppressHostEvents(NULL)
 	end
 
-	local controller = self:GetMotionController()
 	local owner = self:GetOwner()
 
-	if controller:IsObjectAttached() == true then
+	if not IsValid(owner) then return end --Idk how people manage
+	if self:IsObjectAttached() == true then
 
 		self:SetNextPrimaryFire(CurTime() + 0.5)
 		self:SetNextSecondaryFire(CurTime() + 0.5)
@@ -959,6 +958,7 @@ function SWEP:TraceLength()
 end
 
 function SWEP:FindObjectTrace(owner)
+	if not IsValid(owner) then return end
 
 	local fwd = owner:GetAimVector()
 	local start = owner:GetShootPos()
@@ -998,7 +998,7 @@ end
 function SWEP:FindObject()
 
 	local owner = self:GetOwner()
-	if IsValid(owner) ~= true then
+	if not IsValid(owner) then
 		return
 	end
 
@@ -1084,6 +1084,8 @@ end
 
 function SWEP:GetAttachedObject()
 	local controller = self:GetMotionController()
+	if not IsValid(controller) then return end
+
 	if controller:IsObjectAttached() == false then
 		return
 	end
@@ -1093,12 +1095,14 @@ end
 function SWEP:UpdateObject()
 
 	local owner = self:GetOwner()
-	if IsValid(owner) ~= true then
+	if not IsValid(owner) then
 		return false
 	end
 
 	local controller = self:GetMotionController()
-	if controller:IsObjectAttached() == false then
+	if not IsValid(controller) then return end
+
+	if self:IsObjectAttached() == false then
 		return
 	end
 
@@ -1108,11 +1112,14 @@ function SWEP:UpdateObject()
 		return false
 	end
 
-	local attachedObject = controller:GetAttachedObject()
+	local attachedObject = self:GetAttachedObject()
 	if attachedObject:IsEFlagSet(EFL_NO_PHYSCANNON_INTERACTION) == true then
 		return false
 	end
 	if owner:GetGroundEntity() == attachedObject then
+		return false
+	end
+	if not IsValid(attachedObject:GetPhysicsObject()) then -- picking up weapons which parents to the player cause this
 		return false
 	end
 
@@ -1231,7 +1238,7 @@ end
 function SWEP:WeaponIdle()
 
 	local owner = self:GetOwner()
-	if IsValid(owner) ~= true then
+	if not IsValid(owner) then
 		return
 	end
 
@@ -1240,7 +1247,6 @@ function SWEP:WeaponIdle()
 	end
 
 	--DbgPrint(self, self:GetOwner(), "WeaponIdle")
-	local controller = self:GetMotionController()
 
 	if self:IsMegaPhysCannon() == true then
 		self:OpenElements()
@@ -1255,7 +1261,7 @@ function SWEP:WeaponIdle()
 	end
 
 	self:SetNextIdleTime(-1)
-	if controller:IsObjectAttached() == true then
+	if self:IsObjectAttached() == true then
 		self:SendWeaponAnim(ACT_VM_RELOAD)
 	else
 		if self:IsMegaPhysCannon() == true then
@@ -1278,7 +1284,7 @@ function SWEP:UpdateElementPosition()
 	local elemPos = self.ElementPosition:Interp(CurTime())
 	if self:ShouldDrawUsingViewModel() == true then
 		local owner = self:GetOwner()
-		if IsValid(owner) ~= true then
+		if not IsValid(owner) then
 			return
 		end
 
@@ -1316,12 +1322,11 @@ function SWEP:CheckForTarget()
 	end
 
 	local owner = self:GetOwner()
-	if IsValid(owner) ~= true then
+	if not IsValid(owner) then
 		return
 	end
 
-	local controller = self:GetMotionController()
-	if controller:IsObjectAttached() then
+	if self:IsObjectAttached() then
 		return
 	end
 
@@ -1426,8 +1431,10 @@ function SWEP:UpdateGlow()
 
 	local entPos = nil
 	local owner = self:GetOwner()
-	if self:ShouldDrawUsingViewModel() == true then
+	if IsValid(owner) and self:ShouldDrawUsingViewModel() then
 		local vm = owner:GetViewModel()
+		if not IsValid(vm) then return end
+
 		local attachment = vm:GetAttachment(1)
 		if attachment == nil then
 			return
@@ -1502,10 +1509,10 @@ function SWEP:Think()
 		self:StartEffects()
 	end
 
-	if controller:IsObjectAttached() == true and self:UpdateObject() == false then
+	if self:IsObjectAttached() == true and self:UpdateObject() == false then
 		self:DetachObject()
 		return
-	elseif controller:IsObjectAttached() == false and self.ObjectAttached == true then
+	elseif self:IsObjectAttached() == false and self.ObjectAttached == true then
 		self:DetachObject()
 		return
 	end
@@ -1516,7 +1523,7 @@ function SWEP:Think()
 	end
 
 	-- In mega its always open, no need for traces.
-	if self:IsMegaPhysCannon() == false and controller:IsObjectAttached() == false then
+	if self:IsMegaPhysCannon() == false and self:IsObjectAttached() == false then
 		self:CheckForTarget()
 
 		if self.ElementDebounce < CurTime() and self.ChangeState ~= ELEMENT_STATE_NONE then
@@ -1544,9 +1551,12 @@ function SWEP:AttachObject(ent, tr)
 	DbgPrint(self, "AttachObject", ent)
 
 	local owner = self:GetOwner()
-	if IsValid(owner) ~= true then
+	if not IsValid(owner) then
 		return
 	end
+
+	local motionController = self:GetMotionController()
+	if not IsValid(motionController) then return end
 
 	local useGrabPos = false
 	local grabPos = tr.HitPos
@@ -1587,8 +1597,6 @@ function SWEP:AttachObject(ent, tr)
 
 		ent = ragdoll
 	end
-
-	local motionController = self:GetMotionController()
 
 	if ent:IsRagdoll() then
 		-- NOTE: This is off by default, the original implementation used the closest physics object
@@ -1672,9 +1680,6 @@ end
 function SWEP:DetachObject(launched)
 
 	--assert(false)
-
-	local owner = self:GetOwner()
-
 	DbgPrint(self, "DetachObject")
 
 	if self.ObjectAttached == true then
@@ -1699,21 +1704,24 @@ function SWEP:DetachObject(launched)
 		if SERVER then self:Remove() end
 	end
 
-	if controller:IsObjectAttached() == false then
+	self:DoEffect(EFFECT_READY)
+	self:SetNextIdleTime(CurTime() + 0.2)
+
+	if self:IsObjectAttached() == false then
 		DbgPrint(self, "No object attached")
 		return
 	end
 
-	local ent = controller:GetAttachedObject()
+	local ent = self:GetAttachedObject()
 	if IsValid(ent) ~= true then
-		controller:DetachObject()
 		DbgPrint(self, "Invalid attached object")
+		controller:DetachObject()
 		return
 	end
 
 	local phys = ent:GetPhysicsObject()
 	if IsValid(phys) ~= true then
-		DbgPrint("No physics object")
+		DbgPrint(self, "No physics object")
 		controller:DetachObject()
 		return
 	end
@@ -1724,25 +1732,24 @@ function SWEP:DetachObject(launched)
 		ent:SetOwner(nil)
 	end
 
-	if SERVER and IsValid(owner) == true then
+	local owner = self:GetOwner()
+	local haveOwner = IsValid(owner)
+	if SERVER and haveOwner then
 		hook.Run("GravGunOnDropped", owner, ent)
 		owner:SimulateGravGunDrop(ent, launched)
 	end
 
-	local motionController = self:GetMotionController()
-	motionController:DetachObject()
+	controller:DetachObject()
 
 	if self:IsMegaPhysCannon() == false then
 		self:SendWeaponAnim(ACT_VM_DRYFIRE)
 	end
 
-	self:DoEffect(EFFECT_READY)
-	self:SetNextIdleTime(CurTime() + 0.2)
-
 	if launched ~= true and ent:GetClass() == "prop_combine_ball" and IsValid(phys) == true then
 		-- If we just release it then it will be simply stuck mid air.
+		local baseVel = haveOwner and owner:GetAimVector() or self:GetForward()
 		phys:Wake()
-		phys:SetVelocity( (owner:GetAimVector() + (VectorRand() * 0.8)) * 4000)
+		phys:SetVelocity( (baseVel + (VectorRand() * 0.8)) * 4000)
 	end
 
 end
@@ -1750,9 +1757,11 @@ end
 function SWEP:DryFire()
 
 	local owner = self:GetOwner()
+	if not IsValid(owner) then return end
+
 	owner:SetAnimation(PLAYER_ATTACK1)
 
-	self:SendWeaponAnim( ACT_VM_PRIMARYATTACK )
+	self:SendWeaponAnim(ACT_VM_PRIMARYATTACK)
 	self:EmitSound("Weapon_PhysCannon.DryFire")
 
 	self:DoEffect(EFFECT_READY)
@@ -1816,7 +1825,9 @@ function SWEP:PuntNonVPhysics(ent, fwd, tr)
 	self:SendWeaponAnim(ACT_VM_SECONDARYATTACK)
 
 	local owner = self:GetOwner()
-	owner:SetAnimation(PLAYER_ATTACK1)
+	if IsValid(owner) then
+		owner:SetAnimation(PLAYER_ATTACK1)
+	end
 
 	self.ElementDebounce = CurTime() + 0.5
 	self.CheckSuppressTime = CurTime() + 0.25
@@ -1881,6 +1892,7 @@ function SWEP:PuntVPhysics(ent, fwd, tr)
 	self.LastPuntedObject = ent
 	self.NextPuntTime = curTime + 0.5
 	local owner = self:GetOwner()
+	if not IsValid(owner) then return end
 
 	if SERVER then
 
@@ -1958,6 +1970,7 @@ function SWEP:PuntRagdoll(ent, fwd, tr)
 
 	local curTime = CurTime()
 	local owner = self:GetOwner()
+	if not IsValid(owner) then return end
 
 	if self.LastPuntedObject == ent and curTime < self.NextPuntTime then
 		return
@@ -2193,11 +2206,15 @@ function SWEP:DoEffectLaunch(pos)
 	DbgPrint("DoEffectLaunch")
 
 	local owner = self:GetOwner()
+	if not IsValid(owner) then return end
+
 	local endPos
 	local shotDir
 
 	local controller = self:GetMotionController()
-	local attachedEnt = controller:GetAttachedObject()
+	if not IsValid(controller) then return end
+
+	local attachedEnt = self:GetAttachedObject()
 
 	if pos == nil then
 		if attachedEnt ~= nil then
@@ -2336,8 +2353,7 @@ end
 function SWEP:Holster(ent)
 	DbgPrint(self, "Holster")
 
-	local controller = self:GetMotionController()
-	if IsValid(controller) and controller:IsObjectAttached() == true then
+	if self:IsObjectAttached() == true then
 		return false
 	end
 
@@ -2439,7 +2455,7 @@ function SWEP:UpdateDrawUsingViewModel()
 	local newValue = self:IsCarriedByLocalPlayer() and LocalPlayer():ShouldDrawLocalPlayer() == false
 
 	local owner = self:GetOwner()
-	if IsValid(owner) == false then
+	if not IsValid(owner) then
 		newValue = false
 	else
 		if owner:Alive() == false then
@@ -2462,6 +2478,8 @@ end
 function SWEP:DrawEffects(vm)
 
 	local owner = self:GetOwner()
+	if not IsValid(owner) then return end
+	if not IsValid(vm) then return end
 
 	self:DrawCoreBeams(owner, vm)
 
@@ -2487,7 +2505,12 @@ function SWEP:DrawEffectType(id, data, owner, vm)
 	local pos
 	if self:ShouldDrawUsingViewModel() == true then
 		if IsValid(owner) == true then
+
 			if vm == nil then
+				if not IsValid(owner:GetViewModel()) then
+					return
+				end
+
 				vm = owner:GetViewModel()
 			end
 			local attachmentData = vm:GetAttachment(data.Attachment)
@@ -2551,7 +2574,10 @@ end
 
 function SWEP:DrawCoreBeams(owner, vm)
 
-	if vm == nil and IsValid(owner) == true then
+	local haveOwner = IsValid(owner) -- We can still draw without an owner
+	local haveViewModel = haveOwner and IsValid(owner:GetViewModel()) or nil
+
+	if vm == nil and haveOwner and haveViewModel then
 		vm = owner:GetViewModel()
 	elseif vm == nil then
 		vm = self
@@ -2563,10 +2589,7 @@ function SWEP:DrawCoreBeams(owner, vm)
 	local shouldDrawUsingViewModel = self:ShouldDrawUsingViewModel()
 
 	if shouldDrawUsingViewModel == true then
-		if owner ~= nil then
-			if IsValid(vm) == false then
-				vm = owner:GetViewModel()
-			end
+		if haveOwner then
 			local attachmentData = vm:GetAttachment(1)
 			if attachmentData == nil then
 				return
@@ -2625,7 +2648,7 @@ function SWEP:DrawCoreBeams(owner, vm)
 		end
 
 		if shouldDrawUsingViewModel == true then
-			if owner ~= nil then
+			if haveOwner then
 				attachmentData = vm:GetAttachment(params.Attachment)
 				if attachmentData == nil then
 					continue
@@ -3023,7 +3046,6 @@ function SWEP:PreDrawViewModel( vm, weapon, ply )
 	end
 end
 
-
 function SWEP:ViewModelDrawn(vm)
 	render.MaterialOverride(nil)
 	self:UpdateDrawUsingViewModel()
@@ -3082,3 +3104,4 @@ if SERVER then
 		end
 	end)
 end
+--easylua.EndWeapon(true)
