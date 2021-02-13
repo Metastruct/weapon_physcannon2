@@ -1,6 +1,37 @@
 -- WIP! Don't touch me
 if SERVER then
-    AddCSLuaFile()
+	AddCSLuaFile()
+	local Entity = FindMetaTable"Entity"
+
+	if not Entity.ForcePlayerDropPC2 then
+		local _DropEntityIfHeld = _G.DropEntityIfHeld
+
+		function _G.DropEntityIfHeld(ent)
+			if IsValid(ent) and ent.ForcePlayerDropPC2 then
+				ent:ForcePlayerDropPC2()
+			end
+
+			return _DropEntityIfHeld(ent)
+		end
+
+		local Entity_ForcePlayerDrop = Entity.ForcePlayerDrop
+
+		function Entity:ForcePlayerDrop()
+			if IsValid(self) and self.ForcePlayerDropPC2 then
+				self:ForcePlayerDropPC2()
+			end
+
+			return Entity_ForcePlayerDrop(self)
+		end
+	end
+
+	function Entity:ForcePlayerDropPC2()
+		local owner = self:GetOwner()
+		if not owner:IsValid() then return end
+		local wep = owner:GetActiveWeapon()
+		if not wep:IsValid() or not wep.GetAttachedObject or wep:GetAttachedObject() ~= self then return end
+		wep:DetachObject()
+	end
 end
 
 local function GetLogging()
@@ -3103,3 +3134,4 @@ if SERVER then
         end
     end)
 end
+
