@@ -27,7 +27,7 @@ if SERVER then
 
 	function Entity:ForcePlayerDropPC2()
 		local owner = self:GetOwner()
-		if not owner:IsValid() then return end
+		if not owner:IsValid() or not owner.GetActiveWeapon then return end
 		local wep = owner:GetActiveWeapon()
 		if not wep:IsValid() or not wep.GetAttachedObject or wep:GetAttachedObject() ~= self then return end
 		wep:DetachObject()
