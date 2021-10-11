@@ -1382,41 +1382,7 @@ end
 
 function SWEP:EmitLight(glowMode, pos, brightness, color)
 
-    if glowMode == 1 then
-
-        local pt = self.ProjectedTexture
-        if pt == nil then
-            pt = ProjectedTexture()
-            pt:SetTexture( "effects/flashlight/soft" )
-            pt:SetFarZ(200)
-            self.ProjectedTexture = pt
-        end
-        local owner = self:GetOwner()
-        if IsValid(owner) then
-            pt:SetAngles(owner:GetAimVector():Angle())
-        else
-            pt:SetAngles(self:GetAngles())
-        end
-        pt:SetBrightness(brightness)
-        pt:SetColor(color)
-        pt:SetPos(pos)
-        pt:Update()
-
-        local dlight = DynamicLight( self:EntIndex(), false )
-        if dlight then
-            dlight.pos = pos
-            dlight.r = color.r
-            dlight.g = color.g
-            dlight.b = color.b
-            dlight.brightness = brightness
-            dlight.decay = 1
-            dlight.size = 64
-            dlight.minlight = 0.1
-            dlight.nomodel = false
-            dlight.dietime = CurTime() + 0.1
-        end
-
-    elseif glowMode == 2 then
+    if glowMode == 1 or glowMode == 2 then
 
         local dlight = DynamicLight( self:EntIndex() )
         if dlight then
