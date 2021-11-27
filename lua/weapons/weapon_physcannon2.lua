@@ -623,7 +623,7 @@ function SWEP:PrimaryAttack()
 
         -- SDK: // Don't let the player zap any NPC's except regular antlions and headcrabs.
         if owner:IsPlayer() and ent:IsPlayer() then
-            return self:DryFire()
+            return self:PuntPlayer(ent, fwd, tr)
         end
 
         if SERVER and self:IsMegaPhysCannon() == true and ent:IsNPC() and ent:IsEFlagSet(EFL_NO_MEGAPHYSCANNON_RAGDOLL) == false and ent:CanBecomeRagdoll() == true then
@@ -1829,6 +1829,53 @@ function SWEP:PuntNonVPhysics(ent, fwd, tr)
     self.CheckSuppressTime = CurTime() + 0.25
     self.ChangeState = ELEMENT_STATE_CLOSED
 
+end
+
+function SWEP:PuntPlayer(ply, fwd, tr)
+
+    local owner = self:GetOwner()
+
+    if not ply:IsOnGround() or hook.Run("GravGunCanPuntPlayer", owner, ply) == false then
+        return self:DryFire()
+    end
+
+    local puntForce = 175
+    local dmgAmount = 1.0
+
+    if self:IsMegaPhysCannon() then
+        puntForce = 1750
+        dmgAmount = 50
+    end
+
+    local dmgForce  = fwd * puntForce
+    if SERVER then
+        local dmgInfo = DamageInfo()
+        dmgInfo:SetAttacker(owner)
+        dmgInfo:SetInflictor(self)
+        dmgInfo:SetDamage(dmgAmount)
+        dmgInfo:SetDamageType(bor(DMG_CRUSH, DMG_PHYSGUN))
+        dmgInfo:SetDamageForce(dmgForce)
+        dmgInfo:SetDamagePosition(tr.HitPos)
+
+        ply:DispatchTraceAttack(dmgInfo, tr, fwd)
+    end
+
+    owner:SetAnimation(PLAYER_ATTACK1)
+
+    self:PrimaryFireEffect()
+    self:SendWeaponAnim(ACT_VM_SECONDARYATTACK)
+
+    self.ChangeState = ELEMENT_STATE_CLOSED
+    self.ElementDebounce = CurTime() + 0.5
+    self.CheckSuppressTime = CurTime() + 0.25
+
+    self:DoEffect(EFFECT_LAUNCH, tr.HitPos)
+    self:SetNextIdleTime(CurTime() + 0.2)
+
+    self:SetNextPrimaryFire(CurTime() + 0.5)
+    self:SetNextSecondaryFire(CurTime() + 0.5)
+
+    ply:SetVelocity(dmgForce)
 end
 
 function SWEP:ApplyVelocityBasedForce(ent, fwd)
@@ -3100,4 +3147,3 @@ if SERVER then
         end
     end)
 end
-
