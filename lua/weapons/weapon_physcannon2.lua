@@ -559,7 +559,7 @@ function SWEP:PrimaryAttack()
         local ent = self:GetAttachedObject()
         -- Make sure its in range.
         local dist = (ent:WorldSpaceCenter() - owner:WorldSpaceCenter()):Length()
-        if dist > physcannon_tracelength:GetFloat() then
+        if hook.Run("GravGunPunt", self:GetOwner(), ent) == false or dist > physcannon_tracelength:GetFloat() then
             return self:DryFire()
         end
 
