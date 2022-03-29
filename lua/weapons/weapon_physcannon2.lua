@@ -50,6 +50,7 @@ local Vector = Vector
 local Angle = Angle
 local TraceLine = util.TraceLine
 local Color = Color
+local CurTime = CurTime
 
 local ATTACHMENTS_GAPS_FP =
 {
@@ -544,6 +545,7 @@ function SWEP:LaunchObject(ent, fwd, force)
 
 end
 
+local hull_mins_maxs = Vector(8, 8, 8)
 function SWEP:PrimaryAttack()
 
     DbgPrint(self, "PrimaryAttack")
@@ -584,8 +586,8 @@ function SWEP:PrimaryAttack()
         start = start,
         endpos = endPos,
         filter = owner,
-        mins = Vector(-8, -8, -8),
-        maxs = Vector(8, 8, 8),
+        mins = -hull_mins_maxs,
+        maxs = hull_mins_maxs,
         mask = trMask
     })
 
@@ -987,6 +989,7 @@ function SWEP:TraceLength()
 
 end
 
+local fraction_mins_maxs = Vector(4, 4, 4)
 function SWEP:FindObjectTrace(owner)
     if IsValid(owner) ~= true then return end
 
@@ -1009,8 +1012,8 @@ function SWEP:FindObjectTrace(owner)
             endpos = endPos,
             mask = trMask,
             filter = owner,
-            mins = Vector(-4, -4, -4),
-            maxs = Vector(4, 4, 4)
+            mins = -fraction_mins_maxs,
+            maxs = fraction_mins_maxs
         })
     end
 
@@ -1160,6 +1163,16 @@ function SWEP:UpdateObject()
     local minDist = 24
     local playerLen = owner:OBBMaxs():Length2D()
     local objLen = attachedObject:OBBMaxs():Length2D()
+
+    -- Original gravgun does not have this issue, It uses a more complex way of handling things
+    local modelScale = attachedObject:GetModelScale()
+    if modelScale ~= 1 then
+        -- For some reason when an object is scaled, the OBBMaxs/CollisionBounds are a much higher value then it should be
+        -- However, model bounds does not scale with model scale so this would give a more accurate result in most cases
+        local _, maxs = attachedObject:GetModelBounds()
+        objLen = (maxs * modelScale):Length2D()
+    end
+
     local distance = minDist + playerLen + objLen
 
     local targetAng = self:GetTargetAngle() --self:GetNW2Angle("TargetAng")
@@ -2586,6 +2599,7 @@ local BEAM_SEGMENTS = 4
 local render_StartBeam = render and render.StartBeam or nil
 local render_EndBeam = render and render.EndBeam or nil
 
+local vector_one = Vector(1, 1, 1)
 function SWEP:DrawBeam(startPos, endPos, width, color)
 
     color = color or Color(255, 255, 255, 255)
@@ -2604,7 +2618,7 @@ function SWEP:DrawBeam(startPos, endPos, width, color)
             else
                 local t = CurTime() * 5
                 local p = (t + (n * n)) + (i / BEAM_SEGMENTS - 1) * math.pi
-                offset = Vector(1, 1, 1) * math.sin(p) + (VectorRand() * ((n / BEAM_GROUPS) - 0.5))
+                offset = vector_one * math.sin(p) + (VectorRand() * ((n / BEAM_GROUPS) - 0.5))
                 pos = startPos + (i * split) + offset
             end
             local texcoord = util.RandomFloat(0, 1)
