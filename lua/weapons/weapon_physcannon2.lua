@@ -1166,7 +1166,7 @@ function SWEP:UpdateObject()
 
     -- Original gravgun does not have this issue, It uses a more complex way of handling things
     local modelScale = attachedObject:GetModelScale()
-    if modelScale ~= 1 then
+    if isnumber(modelScale) and modelScale ~= 1 then
         -- For some reason when an object is scaled, the OBBMaxs/CollisionBounds are a much higher value then it should be
         -- However, model bounds does not scale with model scale so this would give a more accurate result in most cases
         local _, maxs = attachedObject:GetModelBounds()
