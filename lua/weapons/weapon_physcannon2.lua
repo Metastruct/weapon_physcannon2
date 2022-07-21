@@ -1550,9 +1550,34 @@ function SWEP:Think()
     end
 
     self:WeaponIdle()
-
     return true
 
+end
+function SWEP:Tick()
+	local owner = self:GetOwner()
+	if not owner:IsValid() then return end
+	self:RotateThink(owner)
+end
+
+function SWEP:FreezeMovement()
+	local owner = self:GetOwner()
+	if not owner:IsValid() then return end
+	if owner:KeyDown(IN_RELOAD) or owner:KeyReleased(IN_RELOAD) then return true end
+
+	return false
+end
+
+function SWEP:RotateThink(owner)
+	if not owner:KeyDown(IN_RELOAD) then return end
+	local ucmd = owner:GetCurrentCommand()
+	--local vec = owner:GetAimVector()
+	--vec.z = 0
+	--vec:Normalize()
+	--local right = owner:EyeAngles():Right()
+	local ang = self:GetTargetAngle()
+	ang:RotateAroundAxis(Vector(0, 0, 1), ucmd:GetMouseX() * .1)
+	ang:RotateAroundAxis(Vector(0, -1, 0), ucmd:GetMouseY() * .1)
+	self:SetTargetAngle(ang)
 end
 
 function SWEP:AttachObject(ent, tr)
