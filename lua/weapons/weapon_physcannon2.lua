@@ -1553,6 +1553,7 @@ function SWEP:Think()
     return true
 
 end
+
 function SWEP:Tick()
 	local owner = self:GetOwner()
 	if not owner:IsValid() then return end
@@ -1560,11 +1561,10 @@ function SWEP:Tick()
 end
 
 function SWEP:FreezeMovement()
+	if not self:IsObjectAttached() then return end
 	local owner = self:GetOwner()
 	if not owner:IsValid() then return end
 	if owner:KeyDown(IN_RELOAD) or owner:KeyReleased(IN_RELOAD) then return true end
-
-	return false
 end
 
 function SWEP:RotateThink(owner)
