@@ -154,7 +154,9 @@ function ENT:AttachObject(obj, grabPos, useGrabPos)
 		if obj:GetClass() == "prop_combine_ball" then
 			-- They have no physics on the client?
 			obj:PhysicsInitSphere(12, "metal_bouncy")
-		else
+			obj.cannon2_physics = true
+		elseif not obj:GetPhysicsObject():IsValid() then
+			obj.cannon2_physics = true
 			obj:PhysicsInit(SOLID_VPHYSICS)
 		end
 		physObj = obj:GetPhysicsObject()
@@ -251,8 +253,9 @@ function ENT:DetachObject()
 			self.SavedMass = {}
 			self.SavedRotDamping = {}
 
-			if CLIENT then
+			if CLIENT and obj.cannon2_physics then
 			   obj:PhysicsDestroy()
+			   obj.cannon2_physics = nil
 			end
 		else
 			DbgPrint(self, "No valid physics: " .. tostring(phys))
