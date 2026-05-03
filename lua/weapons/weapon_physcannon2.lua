@@ -1,4 +1,4 @@
--- WIP! Don't touch me
+
 if SERVER then
 	AddCSLuaFile()
 	local Entity = FindMetaTable"Entity"
@@ -127,7 +127,7 @@ end
 if CLIENT then
 
     SWEP.Slot = 0
-    SWEP.SlotPos = 0
+    SWEP.SlotPos = 1
     SWEP.DrawAmmo = false
     SWEP.DrawCrosshair = true
     SWEP.DrawWeaponInfoBox = false
